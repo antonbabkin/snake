@@ -3,8 +3,14 @@ Classic snake game.
 '''
 
 import sys
+from random import randint
+
 import pygame
 from pygame.locals import *
+
+GRID_W = 20
+GRID_H = 20
+SEG = pygame.Rect(0, 0, 32, 32)
 
 def rect_mod(rect, modulus):
     '''Modulo division: "wrap" rect around modulus.'''
@@ -14,14 +20,30 @@ def rect_mod(rect, modulus):
     rect.y %= modulus.h
     return rect
 
+class Apple:
+    def __init__(self, box):
+        self.box = box
+        self.image = pygame.Surface((SEG.w, SEG.h))
+        self.rect = self.image.get_rect()
+        pygame.draw.ellipse(self.image, Color('green'), self.rect.inflate(0, -int(0.2 * SEG.h)))
+        
+    def move(self):
+        grid_x = randint(0, GRID_W - 1)
+        grid_y = randint(0, GRID_H - 1)
+        self.rect.x = grid_x * SEG.w
+        self.rect.y = grid_y * SEG.h
+
+    def blit(self, surf):
+        surf.blit(self.image, self.rect)
 
 
 class Snake:
-    seg = pygame.Rect(0, 0, 16, 16)
-
     def __init__(self, pos, facing, box, speed=1):
-        self.image = pygame.image.load('segment.png').convert()
+        self.image = pygame.Surface((SEG.w, SEG.h))
         self.rect = self.image.get_rect(topleft=pos)
+        pygame.draw.ellipse(self.image, Color('purple'), self.rect)
+        inner_circle = self.rect.inflate(-int(0.25 * SEG.w), -int(0.25 * SEG.h))
+        pygame.draw.ellipse(self.image, Color('blue'), inner_circle)
         self.facing = facing
         self.box = box
         self.speed = speed
@@ -37,13 +59,13 @@ class Snake:
             return
         
         if self.facing == 'n':
-            self.rect.move_ip(0, -self.seg.w)
+            self.rect.move_ip(0, -SEG.w)
         elif self.facing == 'e':
-            self.rect.move_ip(self.seg.h, 0)
+            self.rect.move_ip(SEG.h, 0)
         elif self.facing == 's':
-            self.rect.move_ip(0, self.seg.w)
+            self.rect.move_ip(0, SEG.w)
         elif self.facing == 'w':
-            self.rect.move_ip(-self.seg.h, 0)
+            self.rect.move_ip(-SEG.h, 0)
         
         # wrap around edges
         self.rect = rect_mod(self.rect, self.box)
@@ -57,12 +79,19 @@ class Snake:
 def main():
     pygame.init()
 
-    black = pygame.Color('black')
-    screen = pygame.display.set_mode((640, 480))
+    black = Color('black')
+    screen = pygame.display.set_mode((GRID_W * SEG.w, GRID_H * SEG.h))
 
-    snake = Snake((0, 0), 'e', screen.get_rect(), 16)
+    start_pos = (0, 0)
+    start_facing = 'e'
+    start_speed = 8
+    snake = Snake(start_pos, start_facing, screen.get_rect(), start_speed)
+
+    apple = Apple(screen.get_rect())
+    apple.move()
 
     while True:
+        
         for event in pygame.event.get():
             if event.type == QUIT:
                 sys.exit()
@@ -79,9 +108,14 @@ def main():
                     snake.turn('w')
 
         snake.move()
+        if snake.rect.contains(apple.rect):
+            apple.move()
+
         screen.fill(black)
         snake.blit(screen)
+        apple.blit(screen)
         pygame.display.flip()
+
         pygame.time.delay(1000 // 60)
 
 
