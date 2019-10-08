@@ -24,18 +24,22 @@ class Location:
     def __init__(self, grid, x, y):
         assert 0 <= x < grid.w
         assert 0 <= y < grid.h
-        self.grid = grid
+        self._grid = grid
         self.x = x
         self.y = y
 
     def __eq__(self, other):
-        assert self.grid is other.grid
+        assert self._grid is other._grid
         return self.x == other.x and self.y == other.y
+
+    def __iter__(self):
+        yield self.x
+        yield self.y
     
     def move(self, dx, dy):
-        x = (self.x + dx) % self.grid.w
-        y = (self.y + dy) % self.grid.h
-        return Location(self.grid, x, y)
+        x = (self.x + dx) % self._grid.w
+        y = (self.y + dy) % self._grid.h
+        return Location(self._grid, x, y)
 
     def move_ip(self, dx, dy):
         l = self.move(dx, dy)

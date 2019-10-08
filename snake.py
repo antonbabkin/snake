@@ -3,7 +3,6 @@ Classic snake game.
 '''
 
 import sys
-from random import randint
 
 import pygame
 from pygame.locals import *
@@ -65,17 +64,23 @@ class Snake:
     def move(self, apple):
         now = pygame.time.get_ticks()
         if now - self.last_moved < self.delay:
-            return
+            return False
         
         head = self.segs[0]
         new_loc = head.loc.step(self.facing)
-        head.move(new_loc.x, new_loc.y)
-
-        self.last_moved = now
 
         if new_loc == apple.loc:
-            # grow
-            return True
+            got_apple = True
+            new_head = SnakeSegment(*new_loc)
+            self.segs.insert(0, new_head)
+        else:
+            got_apple = False
+            tail = self.segs.pop()
+            tail.move(*new_loc)
+            self.segs.insert(0, tail)
+
+        self.last_moved = now
+        return got_apple
 
     def blit(self, surf):
         for seg in self.segs:
@@ -90,7 +95,7 @@ def main():
 
     start_facing = 'e'
     start_speed = 8
-    snake = Snake(((0, 0), ), start_facing, start_speed)
+    snake = Snake(((4, 4), (3, 4)), start_facing, start_speed)
 
     apple = Apple()
 
@@ -113,6 +118,7 @@ def main():
 
         got_apple = snake.move(apple)
         if got_apple:
+            # todo: avoid moving on top of snake segment
             apple.move()
 
         screen.fill(black)
