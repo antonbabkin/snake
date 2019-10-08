@@ -8,90 +8,94 @@ from random import randint
 import pygame
 from pygame.locals import *
 
-GRID_W = 20
-GRID_H = 20
-SEG = pygame.Rect(0, 0, 32, 32)
+import gridlib
 
-def rect_mod(rect, modulus):
-    '''Modulo division: "wrap" rect around modulus.'''
-    # ignores x, y of modulus
-    rect = rect.copy()
-    rect.x %= modulus.w
-    rect.y %= modulus.h
-    return rect
+GRID = gridlib.Grid(20, 20)
+TILE = pygame.Rect(0, 0, 32, 32)
 
-class Apple:
-    def __init__(self, box):
-        self.box = box
-        self.image = pygame.Surface((SEG.w, SEG.h))
-        self.rect = self.image.get_rect()
-        pygame.draw.ellipse(self.image, Color('green'), self.rect.inflate(0, -int(0.2 * SEG.h)))
-        
-    def move(self):
-        grid_x = randint(0, GRID_W - 1)
-        grid_y = randint(0, GRID_H - 1)
-        self.rect.x = grid_x * SEG.w
-        self.rect.y = grid_y * SEG.h
+class TileSprite:
+    def __init__(self):
+        self.image = pygame.Surface((TILE.w, TILE.h))
+        self.rect = TILE.copy()
+        self.loc = None
+
+    def _update_rect(self):
+        self.rect.x = self.loc.x * TILE.w
+        self.rect.y = self.loc.y * TILE.h
 
     def blit(self, surf):
         surf.blit(self.image, self.rect)
 
 
-class Snake:
-    def __init__(self, pos, facing, box, speed=1):
-        self.image = pygame.Surface((SEG.w, SEG.h))
-        self.rect = self.image.get_rect(topleft=pos)
+class Apple(TileSprite):
+    def __init__(self):
+        super().__init__()
+        pygame.draw.ellipse(self.image, Color('green'), self.rect.inflate(0, -int(0.2 * TILE.h)))
+        self.move()
+        
+    def move(self):
+        self.loc = GRID.random_loc()
+        self._update_rect()
+
+
+class SnakeSegment(TileSprite):
+    def __init__(self, x, y):
+        super().__init__()
         pygame.draw.ellipse(self.image, Color('purple'), self.rect)
-        inner_circle = self.rect.inflate(-int(0.25 * SEG.w), -int(0.25 * SEG.h))
+        inner_circle = self.rect.inflate(-int(0.25 * TILE.w), -int(0.25 * TILE.h))
         pygame.draw.ellipse(self.image, Color('blue'), inner_circle)
+        self.move(x, y)
+
+    def move(self, x, y):
+        self.loc = GRID.loc(x, y)
+        self._update_rect()
+
+
+class Snake:
+    def __init__(self, seg_locs, facing, speed=1):
         self.facing = facing
-        self.box = box
         self.speed = speed
         self.delay = 1000 // self.speed
         self.last_moved = pygame.time.get_ticks()
+        self.segs = [SnakeSegment(*x) for x in seg_locs]
 
     def turn(self, facing):
         self.facing = facing
 
-    def move(self):
+    def move(self, apple):
         now = pygame.time.get_ticks()
         if now - self.last_moved < self.delay:
             return
         
-        if self.facing == 'n':
-            self.rect.move_ip(0, -SEG.w)
-        elif self.facing == 'e':
-            self.rect.move_ip(SEG.h, 0)
-        elif self.facing == 's':
-            self.rect.move_ip(0, SEG.w)
-        elif self.facing == 'w':
-            self.rect.move_ip(-SEG.h, 0)
-        
-        # wrap around edges
-        self.rect = rect_mod(self.rect, self.box)
-        
+        head = self.segs[0]
+        new_loc = head.loc.step(self.facing)
+        head.move(new_loc.x, new_loc.y)
+
         self.last_moved = now
 
+        if new_loc == apple.loc:
+            # grow
+            return True
+
     def blit(self, surf):
-        surf.blit(self.image, self.rect)
+        for seg in self.segs:
+            seg.blit(surf)
     
 
 def main():
     pygame.init()
 
     black = Color('black')
-    screen = pygame.display.set_mode((GRID_W * SEG.w, GRID_H * SEG.h))
+    screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
 
-    start_pos = (0, 0)
     start_facing = 'e'
     start_speed = 8
-    snake = Snake(start_pos, start_facing, screen.get_rect(), start_speed)
+    snake = Snake(((0, 0), ), start_facing, start_speed)
 
-    apple = Apple(screen.get_rect())
-    apple.move()
+    apple = Apple()
 
     while True:
-        
+
         for event in pygame.event.get():
             if event.type == QUIT:
                 sys.exit()
@@ -107,8 +111,8 @@ def main():
                 elif event.key in (K_a, K_LEFT):
                     snake.turn('w')
 
-        snake.move()
-        if snake.rect.contains(apple.rect):
+        got_apple = snake.move(apple)
+        if got_apple:
             apple.move()
 
         screen.fill(black)
