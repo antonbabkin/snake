@@ -5,14 +5,14 @@ Classic snake game.
 import sys
 
 import pygame
-from pygame.locals import *
 
 import gridlib
 
-GRID = gridlib.Grid(20, 20)
+GRID = gridlib.Grid(10, 10)
 TILE = pygame.Rect(0, 0, 32, 32)
 
 class TileSprite:
+    '''Base class to represent single tile sprites.'''
     def __init__(self):
         self.image = pygame.Surface((TILE.w, TILE.h))
         self.rect = TILE.copy()
@@ -23,34 +23,40 @@ class TileSprite:
         self.rect.y = self.loc.y * TILE.h
 
     def blit(self, surf):
+        '''Blit sprite image onto surface.'''
         surf.blit(self.image, self.rect)
 
-
 class Apple(TileSprite):
+    '''Apple that the snake eats to grow.'''
     def __init__(self):
         super().__init__()
-        pygame.draw.ellipse(self.image, Color('green'), self.rect.inflate(0, -int(0.2 * TILE.h)))
+        pygame.draw.ellipse(self.image, pygame.Color('green'),
+                            self.rect.inflate(0, -int(0.2 * TILE.h)))
         self.move()
-        
+
     def move(self):
+        '''Move apple to random location.'''
         self.loc = GRID.random_loc()
         self._update_rect()
 
 
 class SnakeSegment(TileSprite):
+    '''Single segment of a snake.'''
     def __init__(self, x, y):
         super().__init__()
-        pygame.draw.ellipse(self.image, Color('purple'), self.rect)
+        pygame.draw.ellipse(self.image, pygame.Color('purple'), self.rect)
         inner_circle = self.rect.inflate(-int(0.25 * TILE.w), -int(0.25 * TILE.h))
-        pygame.draw.ellipse(self.image, Color('blue'), inner_circle)
+        pygame.draw.ellipse(self.image, pygame.Color('blue'), inner_circle)
         self.move(x, y)
 
     def move(self, x, y):
+        '''Move segment to (x, y) location on grid.'''
         self.loc = GRID.loc(x, y)
         self._update_rect()
 
 
 class Snake:
+    '''Snake consisting of multiple segments.'''
     def __init__(self, seg_locs, facing, speed=1):
         self.facing = facing
         self.speed = speed
@@ -59,74 +65,93 @@ class Snake:
         self.segs = [SnakeSegment(*x) for x in seg_locs]
 
     def turn(self, facing):
-        self.facing = facing
+        '''Change facing direction. Can not turn backwards.'''
+        if not gridlib.opposite_dir(self.facing, facing):
+            self.facing = facing
 
     def move(self, apple):
+        '''
+        Move in the facing direction and return result. Grow if got apple.
+        Returns: None (no move), 'move', 'apple', 'self'.
+        '''
         now = pygame.time.get_ticks()
         if now - self.last_moved < self.delay:
-            return False
-        
+            return None
+
         head = self.segs[0]
         new_loc = head.loc.step(self.facing)
 
         if new_loc == apple.loc:
-            got_apple = True
+            result = 'apple'
             new_head = SnakeSegment(*new_loc)
             self.segs.insert(0, new_head)
+        elif self.collide(new_loc):
+            result = 'self'
         else:
-            got_apple = False
+            result = 'move'
             tail = self.segs.pop()
             tail.move(*new_loc)
             self.segs.insert(0, tail)
 
         self.last_moved = now
-        return got_apple
+        return result
+
+    def collide(self, loc):
+        '''Test if loc collides with any segment.'''
+        return any(loc == seg.loc for seg in self.segs)
 
     def blit(self, surf):
+        '''Blit whole snake images onto surface.'''
         for seg in self.segs:
             seg.blit(surf)
-    
+
 
 def main():
+    '''Run game app.'''
+
     pygame.init()
 
-    black = Color('black')
+    black = pygame.Color('black')
     screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
 
     start_facing = 'e'
-    start_speed = 8
-    snake = Snake(((4, 4), (3, 4)), start_facing, start_speed)
-
+    snake = Snake(((4, 4), (3, 4)), start_facing, 12)
     apple = Apple()
 
     while True:
 
+        pygame.time.delay(1000 // 60)
+
         for event in pygame.event.get():
-            if event.type == QUIT:
+            if event.type == pygame.QUIT:
                 sys.exit()
-            elif event.type == KEYDOWN:
-                if event.key == K_ESCAPE:
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
                     sys.exit()
-                elif event.key in (K_w, K_UP):
+                elif event.key in (pygame.K_w, pygame.K_UP):
                     snake.turn('n')
-                elif event.key in (K_d, K_RIGHT):
+                elif event.key in (pygame.K_d, pygame.K_RIGHT):
                     snake.turn('e')
-                elif event.key in (K_s, K_DOWN):
+                elif event.key in (pygame.K_s, pygame.K_DOWN):
                     snake.turn('s')
-                elif event.key in (K_a, K_LEFT):
+                elif event.key in (pygame.K_a, pygame.K_LEFT):
                     snake.turn('w')
 
-        got_apple = snake.move(apple)
-        if got_apple:
-            # todo: avoid moving on top of snake segment
-            apple.move()
+        move_result = snake.move(apple)
+        if move_result == 'apple':
+            apple_on_snake = True
+            while apple_on_snake:
+                apple.move()
+                apple_on_snake = snake.collide(apple.loc)
+        elif move_result == 'self':
+            print('game over')
+            pygame.time.delay(2000)
+            sys.exit()
 
         screen.fill(black)
         snake.blit(screen)
         apple.blit(screen)
         pygame.display.flip()
-
-        pygame.time.delay(1000 // 60)
 
 
 if __name__ == '__main__':

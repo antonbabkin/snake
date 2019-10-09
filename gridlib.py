@@ -4,6 +4,18 @@ Working with grid-like maps.
 
 from random import randrange
 
+def opposite_dir(a, b):
+    '''
+    Test if direction a is opposite to b.
+    >>> opposite_dir('e', 'w')
+    True
+    >>> opposite_dir('e', 's')
+    False
+    '''
+    opposites = dict(n='s', e='w', s='n', w='e')
+    return b == opposites[a]
+
+
 
 class Grid:
     def __init__(self, w, h):
@@ -27,6 +39,9 @@ class Location:
         self._grid = grid
         self.x = x
         self.y = y
+    
+    def __str__(self):
+        return f'({self.x}, {self.y})'
 
     def __eq__(self, other):
         assert self._grid is other._grid

@@ -5,8 +5,6 @@ Learning game dev with Python and pygame.
 
 ## roadmap
 
-- snake dies when hits self
-- apple should not spawn on snake
 - different sprite for head, shows facing direction
 - status bar: size, speed, score, fps
 - when starting, snake does not move until direction pressed
@@ -17,3 +15,4 @@ Learning game dev with Python and pygame.
 - snake changes color as speed increases, from blue to red
 - key to pause game
 - key to toggle grid lines
+- good and bad apples: good grow, bad shrink
