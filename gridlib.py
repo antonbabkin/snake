@@ -39,7 +39,7 @@ class Location:
         self._grid = grid
         self.x = x
         self.y = y
-    
+
     def __str__(self):
         return f'({self.x}, {self.y})'
 
@@ -50,7 +50,7 @@ class Location:
     def __iter__(self):
         yield self.x
         yield self.y
-    
+
     def move(self, dx, dy):
         x = (self.x + dx) % self._grid.w
         y = (self.y + dy) % self._grid.h
@@ -78,3 +78,22 @@ class Location:
         self.x = l.x
         self.y = l.y
         return self
+
+
+def angle(dir_a, dir_b):
+    """Counterclowise rotation angle between dir_a and dir_b in degrees, multiple of 90.
+    Always positive, i.e. possible values are 0, 90, 180 and 360.
+    """
+    dirs = 'enws'
+    idx_a = dirs.index(dir_a)
+    idx_b = dirs.index(dir_b)
+    return 90 * ((idx_b - idx_a) % 4)
+
+
+def test_angle():
+    for d, a in zip('nwse', (0, 90, 180, 270)):
+        assert angle('n', d) == a
+        assert angle(d, 'n') == -a % 360
+    for d, a in zip('enws', (0, 90, 180, 270)):
+        assert angle('e', d) == a
+        assert angle(d, 'e') == -a % 360
