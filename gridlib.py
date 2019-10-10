@@ -51,6 +51,9 @@ class Location:
         yield self.x
         yield self.y
 
+    def copy(self):
+        return Location(self._grid, self.x, self.y)
+
     def move(self, dx, dy):
         x = (self.x + dx) % self._grid.w
         y = (self.y + dy) % self._grid.h

@@ -5,7 +5,6 @@ Learning game dev with Python and pygame.
 
 ## roadmap
 
-- different sprite for head, shows facing direction
 - status bar: size, speed, score, fps
 - first screen with instructions
 - levels: start from minimal size and speed, increase speed and restart when max size reached

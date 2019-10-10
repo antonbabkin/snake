@@ -5,6 +5,7 @@ Classic snake game.
 import sys
 import enum
 from types import SimpleNamespace
+import math
 
 import pygame
 
@@ -12,6 +13,16 @@ import gridlib
 
 GRID = gridlib.Grid(10, 10)
 TILE = pygame.Rect(0, 0, 32, 32)
+
+def coord_rel_to_abs(coords, rect):
+    """Return coordinate tuple changed from relative to absolute within rect.
+    In relative coordinates, top-left is (0, 0) and bottom-right is (1, 1).
+    """
+    x, y = coords
+    x = rect.x + int(rect.w * x)
+    y = rect.y + int(rect.h * y)
+    return x, y
+
 
 class COLOR(SimpleNamespace):
     BACKGROUND = pygame.Color('black')
@@ -63,6 +74,43 @@ class SnakeSegment(TileSprite):
         self._update_rect()
 
 
+class SnakeHead(SnakeSegment):
+    """Snake head."""
+    def __init__(self, x, y, facing):
+        super().__init__(x, y)
+        # draw north-facing head
+        image_rect = self.image.get_rect()
+        self.image.fill(COLOR.BACKGROUND)
+
+        contour_rel = ((0, 1), (0, 0.5), (0.2, 0), (0.8, 0), (1, 0.5), (1, 1))
+        contour_abs = [coord_rel_to_abs(c, image_rect) for c in contour_rel]
+        pygame.draw.polygon(self.image, COLOR.SNAKE_FILL, contour_abs)
+
+        nose_size = (math.ceil(TILE.w * 0.05), math.ceil(TILE.h * 0.05))
+        left_nose_center = coord_rel_to_abs((0.3, 0.1), image_rect)
+        left_nose = pygame.Rect(left_nose_center, nose_size)
+        pygame.draw.rect(self.image, COLOR.SNAKE_EDGE, left_nose)
+        right_nose_center = coord_rel_to_abs((0.7, 0.1), image_rect)
+        right_nose = pygame.Rect(right_nose_center, nose_size)
+        pygame.draw.rect(self.image, COLOR.SNAKE_EDGE, right_nose)
+
+        eye_size = (math.ceil(TILE.w * 0.1), math.ceil(TILE.h * 0.1))
+        left_eye_center = coord_rel_to_abs((0.2, 0.5), image_rect)
+        left_eye = pygame.Rect(left_eye_center, eye_size)
+        pygame.draw.rect(self.image, COLOR.SNAKE_EDGE, left_eye)
+        right_eye_center = coord_rel_to_abs((0.8, 0.5), image_rect)
+        right_eye = pygame.Rect(right_eye_center, eye_size)
+        pygame.draw.rect(self.image, COLOR.SNAKE_EDGE, right_eye)
+
+        self.facing = 'n'
+        self.turn(facing)
+
+    def turn(self, facing):
+        rotation = gridlib.angle(self.facing, facing)
+        self.image = pygame.transform.rotate(self.image, rotation)
+        self.facing = facing
+
+
 class Snake:
     """Snake consisting of multiple segments."""
     def __init__(self, seg_locs, facing, speed=1):
@@ -70,12 +118,14 @@ class Snake:
         self.speed = speed
         self.delay = 1000 // self.speed
         self.last_moved = pygame.time.get_ticks()
-        self.segs = [SnakeSegment(*x) for x in seg_locs]
+        self.segs = [SnakeHead(*seg_locs[0], facing)]
+        self.segs += [SnakeSegment(*x) for x in seg_locs[1:]]
 
     def turn(self, facing):
         """Change facing direction. Can not turn backwards."""
         if not gridlib.opposite_dir(self.facing, facing):
             self.facing = facing
+            self.segs[0].turn(facing)
 
     def move(self, apple):
         """
@@ -91,15 +141,17 @@ class Snake:
 
         if new_loc == apple.loc:
             result = 'apple'
-            new_head = SnakeSegment(*new_loc)
-            self.segs.insert(0, new_head)
+            new_neck = SnakeSegment(*head.loc)
+            self.segs.insert(1, new_neck)
+            head.move(*new_loc)
         elif self.collide(new_loc):
             result = 'self'
         else:
             result = 'move'
             tail = self.segs.pop()
-            tail.move(*new_loc)
-            self.segs.insert(0, tail)
+            tail.move(*head.loc)
+            self.segs.insert(1, tail)
+            head.move(*new_loc)
 
         self.last_moved = now
         return result
@@ -204,6 +256,19 @@ def main():
     game = Game()
     game.mainloop()
 
+def test_head():
+    """Test head segment rendering."""
+    pygame.init()
+    screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
+    screen.fill(COLOR.BACKGROUND)
+    head = SnakeHead(4, 4, 'n')
+    head.blit(screen)
+    pygame.display.flip()
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                sys.exit()
+        pygame.time.delay(200)
 
 if __name__ == '__main__':
     main()
