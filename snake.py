@@ -3,6 +3,7 @@ Classic snake game.
 '''
 
 import sys
+import enum
 from types import SimpleNamespace
 
 import pygame
@@ -113,6 +114,10 @@ class Snake:
             seg.blit(surf)
 
 
+class GameState(enum.Enum):
+    RUN = enum.auto()
+    PAUSE = enum.auto()
+
 class Game:
     def __init__(self):
         pygame.init()
@@ -120,6 +125,7 @@ class Game:
         start_facing = 'e'
         self.snake = Snake(((4, 4), (3, 4)), start_facing, 12)
         self.apple = Apple()
+        self.state = GameState.RUN
 
     def mainloop(self):
         while True:
@@ -130,21 +136,42 @@ class Game:
 
     def events(self):
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    sys.exit()
-                elif event.key in (pygame.K_w, pygame.K_UP):
-                    self.snake.turn('n')
-                elif event.key in (pygame.K_d, pygame.K_RIGHT):
-                    self.snake.turn('e')
-                elif event.key in (pygame.K_s, pygame.K_DOWN):
-                    self.snake.turn('s')
-                elif event.key in (pygame.K_a, pygame.K_LEFT):
-                    self.snake.turn('w')
+            
+            if event.type != pygame.KEYDOWN:
+                continue
+
+            self.event_handle_pause(event)
+            self.event_handle_dir(event)
+
+
+    def event_handle_pause(self, event):
+        if event.key == pygame.K_SPACE:
+            if self.state == GameState.PAUSE:
+                self.state = GameState.RUN
+            else:
+                self.state = GameState.PAUSE
+
+
+    def event_handle_dir(self, event):
+        if self.state != GameState.RUN:
+            return
+
+        if event.key in (pygame.K_w, pygame.K_UP):
+            self.snake.turn('n')
+        elif event.key in (pygame.K_d, pygame.K_RIGHT):
+            self.snake.turn('e')
+        elif event.key in (pygame.K_s, pygame.K_DOWN):
+            self.snake.turn('s')
+        elif event.key in (pygame.K_a, pygame.K_LEFT):
+            self.snake.turn('w')
+ 
         
     def logic(self):
+        if self.state != GameState.RUN:
+            return
+
         move_result = self.snake.move(self.apple)
         if move_result == 'apple':
             apple_on_snake = True

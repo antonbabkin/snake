@@ -13,6 +13,5 @@ Learning game dev with Python and pygame.
 - game over screen: show stats, press any key to restart
 - you win screen: show stats, press any key to restart
 - snake changes color as speed increases, from blue to red
-- key to pause game
 - key to toggle grid lines
 - good and bad apples: good grow, bad shrink
