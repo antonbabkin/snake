@@ -3,6 +3,7 @@ Classic snake game.
 '''
 
 import sys
+from types import SimpleNamespace
 
 import pygame
 
@@ -10,6 +11,12 @@ import gridlib
 
 GRID = gridlib.Grid(10, 10)
 TILE = pygame.Rect(0, 0, 32, 32)
+
+class COLOR(SimpleNamespace):
+    BACKGROUND = pygame.Color('black')
+    APPLE = pygame.Color('green')
+    SNAKE_EDGE = pygame.Color('purple')
+    SNAKE_FILL = pygame.Color('blue')
 
 class TileSprite:
     '''Base class to represent single tile sprites.'''
@@ -30,7 +37,7 @@ class Apple(TileSprite):
     '''Apple that the snake eats to grow.'''
     def __init__(self):
         super().__init__()
-        pygame.draw.ellipse(self.image, pygame.Color('green'),
+        pygame.draw.ellipse(self.image, COLOR.APPLE,
                             self.rect.inflate(0, -int(0.2 * TILE.h)))
         self.move()
 
@@ -44,9 +51,9 @@ class SnakeSegment(TileSprite):
     '''Single segment of a snake.'''
     def __init__(self, x, y):
         super().__init__()
-        pygame.draw.ellipse(self.image, pygame.Color('purple'), self.rect)
-        inner_circle = self.rect.inflate(-int(0.25 * TILE.w), -int(0.25 * TILE.h))
-        pygame.draw.ellipse(self.image, pygame.Color('blue'), inner_circle)
+        pygame.draw.ellipse(self.image, COLOR.SNAKE_EDGE, self.rect)
+        fill_circle = self.rect.inflate(-int(0.25 * TILE.w), -int(0.25 * TILE.h))
+        pygame.draw.ellipse(self.image, COLOR.SNAKE_FILL, fill_circle)
         self.move(x, y)
 
     def move(self, x, y):
@@ -106,22 +113,22 @@ class Snake:
             seg.blit(surf)
 
 
-def main():
-    '''Run game app.'''
+class Game:
+    def __init__(self):
+        pygame.init()
+        self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
+        start_facing = 'e'
+        self.snake = Snake(((4, 4), (3, 4)), start_facing, 12)
+        self.apple = Apple()
 
-    pygame.init()
+    def mainloop(self):
+        while True:
+            pygame.time.delay(1000 // 60)
+            self.events()
+            self.logic()
+            self.render()
 
-    black = pygame.Color('black')
-    screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
-
-    start_facing = 'e'
-    snake = Snake(((4, 4), (3, 4)), start_facing, 12)
-    apple = Apple()
-
-    while True:
-
-        pygame.time.delay(1000 // 60)
-
+    def events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
@@ -129,29 +136,37 @@ def main():
                 if event.key == pygame.K_ESCAPE:
                     sys.exit()
                 elif event.key in (pygame.K_w, pygame.K_UP):
-                    snake.turn('n')
+                    self.snake.turn('n')
                 elif event.key in (pygame.K_d, pygame.K_RIGHT):
-                    snake.turn('e')
+                    self.snake.turn('e')
                 elif event.key in (pygame.K_s, pygame.K_DOWN):
-                    snake.turn('s')
+                    self.snake.turn('s')
                 elif event.key in (pygame.K_a, pygame.K_LEFT):
-                    snake.turn('w')
-
-        move_result = snake.move(apple)
+                    self.snake.turn('w')
+        
+    def logic(self):
+        move_result = self.snake.move(self.apple)
         if move_result == 'apple':
             apple_on_snake = True
             while apple_on_snake:
-                apple.move()
-                apple_on_snake = snake.collide(apple.loc)
+                self.apple.move()
+                apple_on_snake = self.snake.collide(self.apple.loc)
         elif move_result == 'self':
             print('game over')
             pygame.time.delay(2000)
             sys.exit()
 
-        screen.fill(black)
-        snake.blit(screen)
-        apple.blit(screen)
+    def render(self):
+        self.screen.fill(COLOR.BACKGROUND)
+        self.snake.blit(self.screen)
+        self.apple.blit(self.screen)
         pygame.display.flip()
+
+
+def main():
+    '''Run game app.'''
+    game = Game()
+    game.mainloop()
 
 
 if __name__ == '__main__':
