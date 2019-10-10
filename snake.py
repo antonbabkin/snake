@@ -1,6 +1,6 @@
-'''
+"""
 Classic snake game.
-'''
+"""
 
 import sys
 import enum
@@ -20,7 +20,7 @@ class COLOR(SimpleNamespace):
     SNAKE_FILL = pygame.Color('blue')
 
 class TileSprite:
-    '''Base class to represent single tile sprites.'''
+    """Base class to represent single tile sprites."""
     def __init__(self):
         self.image = pygame.Surface((TILE.w, TILE.h))
         self.rect = TILE.copy()
@@ -31,11 +31,11 @@ class TileSprite:
         self.rect.y = self.loc.y * TILE.h
 
     def blit(self, surf):
-        '''Blit sprite image onto surface.'''
+        """Blit sprite image onto surface."""
         surf.blit(self.image, self.rect)
 
 class Apple(TileSprite):
-    '''Apple that the snake eats to grow.'''
+    """Apple that the snake eats to grow."""
     def __init__(self):
         super().__init__()
         pygame.draw.ellipse(self.image, COLOR.APPLE,
@@ -43,13 +43,13 @@ class Apple(TileSprite):
         self.move()
 
     def move(self):
-        '''Move apple to random location.'''
+        """Move apple to random location."""
         self.loc = GRID.random_loc()
         self._update_rect()
 
 
 class SnakeSegment(TileSprite):
-    '''Single segment of a snake.'''
+    """Single segment of a snake."""
     def __init__(self, x, y):
         super().__init__()
         pygame.draw.ellipse(self.image, COLOR.SNAKE_EDGE, self.rect)
@@ -58,13 +58,13 @@ class SnakeSegment(TileSprite):
         self.move(x, y)
 
     def move(self, x, y):
-        '''Move segment to (x, y) location on grid.'''
+        """Move segment to (x, y) location on grid."""
         self.loc = GRID.loc(x, y)
         self._update_rect()
 
 
 class Snake:
-    '''Snake consisting of multiple segments.'''
+    """Snake consisting of multiple segments."""
     def __init__(self, seg_locs, facing, speed=1):
         self.facing = facing
         self.speed = speed
@@ -73,15 +73,15 @@ class Snake:
         self.segs = [SnakeSegment(*x) for x in seg_locs]
 
     def turn(self, facing):
-        '''Change facing direction. Can not turn backwards.'''
+        """Change facing direction. Can not turn backwards."""
         if not gridlib.opposite_dir(self.facing, facing):
             self.facing = facing
 
     def move(self, apple):
-        '''
+        """
         Move in the facing direction and return result. Grow if got apple.
         Returns: None (no move), 'move', 'apple', 'self'.
-        '''
+        """
         now = pygame.time.get_ticks()
         if now - self.last_moved < self.delay:
             return None
@@ -105,16 +105,17 @@ class Snake:
         return result
 
     def collide(self, loc):
-        '''Test if loc collides with any segment.'''
+        """Test if loc collides with any segment."""
         return any(loc == seg.loc for seg in self.segs)
 
     def blit(self, surf):
-        '''Blit whole snake images onto surface.'''
+        """Blit whole snake images onto surface."""
         for seg in self.segs:
             seg.blit(surf)
 
 
 class GameState(enum.Enum):
+    GET_READY = enum.auto()
     RUN = enum.auto()
     PAUSE = enum.auto()
 
@@ -125,7 +126,7 @@ class Game:
         start_facing = 'e'
         self.snake = Snake(((4, 4), (3, 4)), start_facing, 12)
         self.apple = Apple()
-        self.state = GameState.RUN
+        self.state = GameState.GET_READY
 
     def mainloop(self):
         while True:
@@ -134,11 +135,12 @@ class Game:
             self.logic()
             self.render()
 
+
     def events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 sys.exit()
-            
+
             if event.type != pygame.KEYDOWN:
                 continue
 
@@ -150,24 +152,31 @@ class Game:
         if event.key == pygame.K_SPACE:
             if self.state == GameState.PAUSE:
                 self.state = GameState.RUN
-            else:
+            elif self.state == GameState.RUN:
                 self.state = GameState.PAUSE
 
 
     def event_handle_dir(self, event):
-        if self.state != GameState.RUN:
+        if self.state == GameState.PAUSE:
             return
 
         if event.key in (pygame.K_w, pygame.K_UP):
-            self.snake.turn('n')
+            dir_ = 'n'
         elif event.key in (pygame.K_d, pygame.K_RIGHT):
-            self.snake.turn('e')
+            dir_ = 'e'
         elif event.key in (pygame.K_s, pygame.K_DOWN):
-            self.snake.turn('s')
+            dir_ = 's'
         elif event.key in (pygame.K_a, pygame.K_LEFT):
-            self.snake.turn('w')
- 
-        
+            dir_ = 'w'
+        else:
+            return
+        self.snake.turn(dir_)
+
+        backwards = gridlib.opposite_dir(dir_, self.snake.facing)
+        if self.state == GameState.GET_READY and not backwards:
+            self.state = GameState.RUN
+
+
     def logic(self):
         if self.state != GameState.RUN:
             return
@@ -191,7 +200,7 @@ class Game:
 
 
 def main():
-    '''Run game app.'''
+    """Run game app."""
     game = Game()
     game.mainloop()
 
