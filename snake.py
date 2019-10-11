@@ -11,7 +11,7 @@ import pygame
 
 import gridlib
 
-GRID = gridlib.Grid(10, 10)
+GRID = gridlib.Grid(20, 20)
 TILE = pygame.Rect(0, 0, 32, 32)
 
 def coord_rel_to_abs(coords, rect):
@@ -115,6 +115,7 @@ class Snake:
     """Snake consisting of multiple segments."""
     def __init__(self, seg_locs, facing, speed=1):
         self.facing = facing
+        self.backward = gridlib.opposite_dir(facing)
         self.speed = speed
         self.delay = 1000 // self.speed
         self.last_moved = pygame.time.get_ticks()
@@ -122,8 +123,8 @@ class Snake:
         self.segs += [SnakeSegment(*x) for x in seg_locs[1:]]
 
     def turn(self, facing):
-        """Change facing direction. Can not turn backwards."""
-        if not gridlib.opposite_dir(self.facing, facing):
+        """Change facing direction. Can not turn backward."""
+        if facing != self.backward:
             self.facing = facing
             self.segs[0].turn(facing)
 
@@ -153,6 +154,7 @@ class Snake:
             self.segs.insert(1, tail)
             head.move(*new_loc)
 
+        self.backward = gridlib.opposite_dir(self.facing)
         self.last_moved = now
         return result
 
@@ -176,7 +178,7 @@ class Game:
         pygame.init()
         self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
         start_facing = 'e'
-        self.snake = Snake(((4, 4), (3, 4)), start_facing, 12)
+        self.snake = Snake(((4, 4), (3, 4)), start_facing, 10)
         self.apple = Apple()
         self.state = GameState.GET_READY
 
@@ -224,8 +226,7 @@ class Game:
             return
         self.snake.turn(dir_)
 
-        backwards = gridlib.opposite_dir(dir_, self.snake.facing)
-        if self.state == GameState.GET_READY and not backwards:
+        if self.state == GameState.GET_READY and dir_ != self.snake.backward:
             self.state = GameState.RUN
 
 

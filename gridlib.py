@@ -1,19 +1,23 @@
-'''
+"""
 Working with grid-like maps.
-'''
+"""
 
 from random import randrange
 
-def opposite_dir(a, b):
-    '''
+def opposite_dir(d):
+    """Return opposite direction."""
+    opposites = dict(n='s', e='w', s='n', w='e')
+    return opposites[d]
+
+def is_opposite_dir(a, b):
+    """
     Test if direction a is opposite to b.
     >>> opposite_dir('e', 'w')
     True
     >>> opposite_dir('e', 's')
     False
-    '''
-    opposites = dict(n='s', e='w', s='n', w='e')
-    return b == opposites[a]
+    """
+    return b == opposite_dir(a)
 
 
 
