@@ -29,6 +29,7 @@ class COLOR(SimpleNamespace):
     APPLE = pygame.Color('green')
     SNAKE_EDGE = pygame.Color('purple')
     SNAKE_FILL = pygame.Color('blue')
+    GRID_LINE = pygame.Color('gray')
 
 class TileSprite:
     """Base class to represent single tile sprites."""
@@ -168,6 +169,30 @@ class Snake:
             seg.blit(surf)
 
 
+class Background:
+    def __init__(self):
+        self.grid_lines = False
+        self.rect = pygame.display.get_surface().get_rect()
+        self.image = pygame.Surface(self.rect.size).convert()
+        self.image.fill(COLOR.BACKGROUND)
+
+    def _draw_grid_lines(self):
+        for x in range(-1, self.rect.w, TILE.w):
+            pygame.draw.line(self.image, COLOR.GRID_LINE, (x, 0), (x, self.rect.h), 2)
+        for y in range(-1, self.rect.h, TILE.h):
+            pygame.draw.line(self.image, COLOR.GRID_LINE, (0, y), (self.rect.w, y), 2)
+
+    def toggle_grid_lines(self):
+        if self.grid_lines:
+            self.image.fill(COLOR.BACKGROUND)
+            self.grid_lines = False
+        else:
+            self._draw_grid_lines()
+            self.grid_lines = True
+
+    def draw(self, surf):
+        surf.blit(self.image, self.rect)
+
 class GameState(enum.Enum):
     GET_READY = enum.auto()
     RUN = enum.auto()
@@ -177,14 +202,17 @@ class Game:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
+        self.background = Background()
+        self.background.toggle_grid_lines()
         start_facing = 'e'
         self.snake = Snake(((4, 4), (3, 4)), start_facing, 10)
         self.apple = Apple()
         self.state = GameState.GET_READY
 
     def mainloop(self):
+        clock = pygame.time.Clock()
         while True:
-            pygame.time.delay(1000 // 60)
+            clock.tick(60)
             self.events()
             self.logic()
             self.render()
@@ -198,11 +226,12 @@ class Game:
             if event.type != pygame.KEYDOWN:
                 continue
 
-            self.event_handle_pause(event)
-            self.event_handle_dir(event)
+            self._event_handle_pause(event)
+            self._event_handle_dir(event)
+            self._event_handle_grid(event)
 
 
-    def event_handle_pause(self, event):
+    def _event_handle_pause(self, event):
         if event.key == pygame.K_SPACE:
             if self.state == GameState.PAUSE:
                 self.state = GameState.RUN
@@ -210,7 +239,7 @@ class Game:
                 self.state = GameState.PAUSE
 
 
-    def event_handle_dir(self, event):
+    def _event_handle_dir(self, event):
         if self.state == GameState.PAUSE:
             return
 
@@ -229,6 +258,9 @@ class Game:
         if self.state == GameState.GET_READY and dir_ != self.snake.backward:
             self.state = GameState.RUN
 
+    def _event_handle_grid(self, event):
+        if event.key == pygame.K_g:
+            self.background.toggle_grid_lines()
 
     def logic(self):
         if self.state != GameState.RUN:
@@ -246,7 +278,7 @@ class Game:
             sys.exit()
 
     def render(self):
-        self.screen.fill(COLOR.BACKGROUND)
+        self.background.draw(self.screen)
         self.snake.blit(self.screen)
         self.apple.blit(self.screen)
         pygame.display.flip()
