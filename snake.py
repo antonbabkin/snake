@@ -13,6 +13,7 @@ import gridlib
 
 GRID = gridlib.Grid(20, 20)
 TILE = pygame.Rect(0, 0, 32, 32)
+WIN_SIZE = 10
 
 def coord_rel_to_abs(coords, rect):
     """Return coordinate tuple changed from relative to absolute within rect.
@@ -193,21 +194,36 @@ class Background:
     def draw(self, surf):
         surf.blit(self.image, self.rect)
 
+class Text:
+    def __init__(self, text, color, center=None):
+        font = pygame.font.Font(None, 128)
+        self.image = font.render(text, False, color)
+        if center is None:
+            center = pygame.display.get_surface().get_rect().center
+        self.rect = self.image.get_rect(center=center)
+
+    def draw(self, surf):
+        surf.blit(self.image, self.rect)
+
 class GameState(enum.Enum):
     GET_READY = enum.auto()
     RUN = enum.auto()
     PAUSE = enum.auto()
+    WIN = enum.auto()
+    LOSE = enum.auto()
 
 class Game:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
         self.background = Background()
-        self.background.toggle_grid_lines()
         start_facing = 'e'
         self.snake = Snake(((4, 4), (3, 4)), start_facing, 10)
         self.apple = Apple()
         self.state = GameState.GET_READY
+        self.text_pause = Text('PAUSE', pygame.Color('white'))
+        self.text_win = Text('You win!', pygame.Color('white'))
+        self.text_lose = Text('You lose!', pygame.Color('white'))
 
     def mainloop(self):
         clock = pygame.time.Clock()
@@ -222,6 +238,9 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 sys.exit()
+
+            if self.state in (GameState.WIN, GameState.LOSE):
+                continue
 
             if event.type != pygame.KEYDOWN:
                 continue
@@ -272,15 +291,21 @@ class Game:
             while apple_on_snake:
                 self.apple.move()
                 apple_on_snake = self.snake.collide(self.apple.loc)
+            if len(self.snake.segs) == WIN_SIZE:
+                self.state = GameState.WIN
         elif move_result == 'self':
-            print('game over')
-            pygame.time.delay(2000)
-            sys.exit()
+            self.state = GameState.LOSE
 
     def render(self):
         self.background.draw(self.screen)
         self.snake.blit(self.screen)
         self.apple.blit(self.screen)
+        if self.state == GameState.PAUSE:
+            self.text_pause.draw(self.screen)
+        elif self.state == GameState.WIN:
+            self.text_win.draw(self.screen)
+        elif self.state == GameState.LOSE:
+            self.text_lose.draw(self.screen)
         pygame.display.flip()
 
 
