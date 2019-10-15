@@ -88,7 +88,7 @@ class Location:
 
 
 def angle(dir_a, dir_b):
-    """Counterclowise rotation angle between dir_a and dir_b in degrees, multiple of 90.
+    """Counterclockwise rotation angle between dir_a and dir_b in degrees, multiple of 90.
     Always positive, i.e. possible values are 0, 90, 180 and 360.
     """
     dirs = 'enws'

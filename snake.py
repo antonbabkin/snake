@@ -13,6 +13,8 @@ import gridlib
 
 GRID = gridlib.Grid(20, 20)
 TILE = pygame.Rect(0, 0, 32, 32)
+START_SIZE = 2
+START_LEVEL = 1
 WIN_SIZE = 10
 
 def coord_rel_to_abs(coords, rect):
@@ -124,6 +126,9 @@ class Snake:
         self.segs = [SnakeHead(*seg_locs[0], facing)]
         self.segs += [SnakeSegment(*x) for x in seg_locs[1:]]
 
+    def __len__(self):
+        return len(self.segs)
+
     def turn(self, facing):
         """Change facing direction. Can not turn backward."""
         if facing != self.backward:
@@ -197,13 +202,69 @@ class Background:
 class Text:
     def __init__(self, text, color, center=None):
         font = pygame.font.Font(None, 128)
-        self.image = font.render(text, False, color)
+        self.image = font.render(text, True, color)
         if center is None:
             center = pygame.display.get_surface().get_rect().center
         self.rect = self.image.get_rect(center=center)
 
     def draw(self, surf):
         surf.blit(self.image, self.rect)
+
+class StatusBar:
+    def __init__(self, size, score, level):
+        self.image = pygame.Surface((GRID.w * TILE.w, TILE.h)).convert()
+        self.rect = self.image.get_rect(bottom=GRID.h * TILE.h)
+        self.font = pygame.font.Font(None, int(TILE.h * 0.9))
+        self.color = pygame.Color('white')
+        self.transparent_color = (0, 0, 0)
+        self.image.set_colorkey(self.transparent_color, pygame.RLEACCEL)
+
+        surf_rect = self.image.get_rect()
+        self.coord_size = dict(left=int(TILE.w * 0.5), centery=surf_rect.centery)
+        self.coord_score = dict(centerx=surf_rect.centerx, centery=surf_rect.centery)
+        self.coord_level = dict(right=surf_rect.right - int(TILE.w * 0.5), centery=surf_rect.centery)
+
+        self.update(level=level, size=size, score=score)
+
+
+    def update(self, size=None, score=None, level=None):
+        if size is not None:
+            text = f'Size: {size}'
+            surf = self.font.render(text, True, self.color)
+            rect = surf.get_rect(**self.coord_size)
+            self.image.fill(self.transparent_color, rect)
+            self.image.blit(surf, rect)
+        if score is not None:
+            text = f'Score: {score}'
+            surf = self.font.render(text, True, self.color)
+            rect = surf.get_rect(**self.coord_score)
+            self.image.fill(self.transparent_color, rect)
+            self.image.blit(surf, rect)
+        if level is not None:
+            text = f'Level: {level}'
+            surf = self.font.render(text, True, self.color)
+            rect = surf.get_rect(**self.coord_level)
+            self.image.fill(self.transparent_color, rect)
+            self.image.blit(surf, rect)
+
+    def draw(self, surf):
+        surf.blit(self.image, self.rect)
+
+class Stats:
+    """Game stats: size, level, score."""
+    def __init__(self):
+        self.size = START_SIZE
+        self.level = START_LEVEL
+        self.score = 0
+
+    def next_level(self):
+        self.level += 1
+        self.size = START_SIZE
+
+    def next_size(self):
+        self.size += 1
+        self.score += self.level
+
 
 class GameState(enum.Enum):
     GET_READY = enum.auto()
@@ -217,10 +278,12 @@ class Game:
         pygame.init()
         self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
         self.background = Background()
+        self.status_bar = StatusBar(2, 0, 1)
         start_facing = 'e'
         self.snake = Snake(((4, 4), (3, 4)), start_facing, 10)
         self.apple = Apple()
         self.state = GameState.GET_READY
+        self.stats = Stats()
         self.text_pause = Text('PAUSE', pygame.Color('white'))
         self.text_win = Text('You win!', pygame.Color('white'))
         self.text_lose = Text('You lose!', pygame.Color('white'))
@@ -291,7 +354,10 @@ class Game:
             while apple_on_snake:
                 self.apple.move()
                 apple_on_snake = self.snake.collide(self.apple.loc)
-            if len(self.snake.segs) == WIN_SIZE:
+            self.stats.next_size()
+            assert self.stats.size == len(self.snake)
+            self.status_bar.update(size=self.stats.size, score=self.stats.score)
+            if len(self.snake) == WIN_SIZE:
                 self.state = GameState.WIN
         elif move_result == 'self':
             self.state = GameState.LOSE
@@ -306,6 +372,7 @@ class Game:
             self.text_win.draw(self.screen)
         elif self.state == GameState.LOSE:
             self.text_lose.draw(self.screen)
+        self.status_bar.draw(self.screen)
         pygame.display.flip()
 
 
