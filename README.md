@@ -5,7 +5,6 @@ Learning game dev with Python and pygame.
 
 ## roadmap
 
-- first screen with instructions
 - levels: start from minimal size and speed, increase speed and restart when max size reached
 - snake changes color as speed increases, from blue to red
 - good and bad apples: good grow, bad shrink

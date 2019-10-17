@@ -175,6 +175,34 @@ class Snake:
             seg.blit(surf)
 
 
+class IntroScreen:
+    def __init__(self):
+        self.rect = pygame.display.get_surface().get_rect()
+        self.image = pygame.Surface(self.rect.size).convert()
+        self.image.fill(COLOR.BACKGROUND)
+
+        def render(text, grid_row, text_size=1):
+            font = pygame.font.Font(None, TILE.h * text_size)
+            surf = font.render(text, True, pygame.Color('white'))
+            rect = surf.get_rect(top=TILE.h * grid_row, centerx=self.rect.centerx)
+            self.image.blit(surf, rect)
+
+        render('SNAKE', 2, 3)
+        render('Move around and eat apples to grow.', 6)
+        render(f'Grow to size {WIN_SIZE} to get to the next level.', 7)
+        render('Speed increases with every level.', 8)
+        render('If snake bites itself it dies.', 9)
+        render('CONTROLS', 11)
+        render('W, A, S, D, arrow keys: turn', 12)
+        render('spacebar: pause', 13)
+        render('G: toggle grid lines', 14)
+        render('ESC: quit', 15)
+        render('Press any key to start.', 18)
+
+
+    def draw(self, surf):
+        surf.blit(self.image, self.rect)
+
 class Background:
     def __init__(self):
         self.grid_lines = False
@@ -267,6 +295,7 @@ class Stats:
 
 
 class GameState(enum.Enum):
+    INTRO = enum.auto()
     GET_READY = enum.auto()
     RUN = enum.auto()
     PAUSE = enum.auto()
@@ -277,12 +306,13 @@ class Game:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
+        self.intro = IntroScreen()
         self.background = Background()
         self.status_bar = StatusBar(2, 0, 1)
         start_facing = 'e'
         self.snake = Snake(((4, 4), (3, 4)), start_facing, 10)
         self.apple = Apple()
-        self.state = GameState.GET_READY
+        self.state = GameState.INTRO
         self.stats = Stats()
         self.text_pause = Text('PAUSE', pygame.Color('white'))
         self.text_win = Text('You win!', pygame.Color('white'))
@@ -306,6 +336,10 @@ class Game:
                 continue
 
             if event.type != pygame.KEYDOWN:
+                continue
+
+            if self.state == GameState.INTRO:
+                self.state = GameState.GET_READY
                 continue
 
             self._event_handle_pause(event)
@@ -363,16 +397,19 @@ class Game:
             self.state = GameState.LOSE
 
     def render(self):
-        self.background.draw(self.screen)
-        self.snake.blit(self.screen)
-        self.apple.blit(self.screen)
-        if self.state == GameState.PAUSE:
-            self.text_pause.draw(self.screen)
-        elif self.state == GameState.WIN:
-            self.text_win.draw(self.screen)
-        elif self.state == GameState.LOSE:
-            self.text_lose.draw(self.screen)
-        self.status_bar.draw(self.screen)
+        if self.state == GameState.INTRO:
+            self.intro.draw(self.screen)
+        else:
+            self.background.draw(self.screen)
+            self.snake.blit(self.screen)
+            self.apple.blit(self.screen)
+            if self.state == GameState.PAUSE:
+                self.text_pause.draw(self.screen)
+            elif self.state == GameState.WIN:
+                self.text_win.draw(self.screen)
+            elif self.state == GameState.LOSE:
+                self.text_lose.draw(self.screen)
+            self.status_bar.draw(self.screen)
         pygame.display.flip()
 
 
