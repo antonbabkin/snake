@@ -13,7 +13,7 @@ import gridlib
 
 GRID = gridlib.Grid(20, 20)
 TILE = pygame.Rect(0, 0, 32, 32)
-START_SIZE = 3
+START_SIZE = 9
 WIN_SIZE = 10
 WIN_LEVEL = 10
 
@@ -30,8 +30,6 @@ def coord_rel_to_abs(coords, rect):
 class COLOR(SimpleNamespace):
     BACKGROUND = pygame.Color('black')
     APPLE = pygame.Color('green')
-    SNAKE_EDGE = pygame.Color('purple')
-    SNAKE_FILL = pygame.Color('blue')
     GRID_LINE = pygame.Color('gray')
 
 class TileSprite:
@@ -68,11 +66,12 @@ class Apple(TileSprite):
 
 class SnakeSegment(TileSprite):
     """Single segment of a snake."""
-    def __init__(self, x, y):
+    def __init__(self, x, y, colors):
         super().__init__()
-        pygame.draw.ellipse(self.image, COLOR.SNAKE_EDGE, self.rect)
+        cfill, cedge = colors
+        pygame.draw.ellipse(self.image, cedge, self.rect)
         fill_circle = self.rect.inflate(-int(0.25 * TILE.w), -int(0.25 * TILE.h))
-        pygame.draw.ellipse(self.image, COLOR.SNAKE_FILL, fill_circle)
+        pygame.draw.ellipse(self.image, cfill, fill_circle)
         self.move(x, y)
 
     def move(self, x, y):
@@ -83,31 +82,33 @@ class SnakeSegment(TileSprite):
 
 class SnakeHead(SnakeSegment):
     """Snake head."""
-    def __init__(self, x, y, facing):
-        super().__init__(x, y)
+    def __init__(self, x, y, facing, colors):
+        cfill, cedge = colors
+        super().__init__(x, y, colors)
+
         # draw north-facing head
         image_rect = self.image.get_rect()
         self.image.fill(COLOR.BACKGROUND)
 
         contour_rel = ((0, 1), (0, 0.5), (0.2, 0), (0.8, 0), (1, 0.5), (1, 1))
         contour_abs = [coord_rel_to_abs(c, image_rect) for c in contour_rel]
-        pygame.draw.polygon(self.image, COLOR.SNAKE_FILL, contour_abs)
+        pygame.draw.polygon(self.image, cfill, contour_abs)
 
         nose_size = (math.ceil(TILE.w * 0.05), math.ceil(TILE.h * 0.05))
         left_nose_center = coord_rel_to_abs((0.3, 0.1), image_rect)
         left_nose = pygame.Rect(left_nose_center, nose_size)
-        pygame.draw.rect(self.image, COLOR.SNAKE_EDGE, left_nose)
+        pygame.draw.rect(self.image, cedge, left_nose)
         right_nose_center = coord_rel_to_abs((0.7, 0.1), image_rect)
         right_nose = pygame.Rect(right_nose_center, nose_size)
-        pygame.draw.rect(self.image, COLOR.SNAKE_EDGE, right_nose)
+        pygame.draw.rect(self.image, cedge, right_nose)
 
         eye_size = (math.ceil(TILE.w * 0.1), math.ceil(TILE.h * 0.1))
         left_eye_center = coord_rel_to_abs((0.2, 0.5), image_rect)
         left_eye = pygame.Rect(left_eye_center, eye_size)
-        pygame.draw.rect(self.image, COLOR.SNAKE_EDGE, left_eye)
+        pygame.draw.rect(self.image, cedge, left_eye)
         right_eye_center = coord_rel_to_abs((0.8, 0.5), image_rect)
         right_eye = pygame.Rect(right_eye_center, eye_size)
-        pygame.draw.rect(self.image, COLOR.SNAKE_EDGE, right_eye)
+        pygame.draw.rect(self.image, cedge, right_eye)
 
         self.facing = 'n'
         self.turn(facing)
@@ -126,13 +127,29 @@ class Snake:
         # speed in steps per second
         self.speed = level + 4
         self.delay = 1000 // self.speed
+        self.colors = self._colors_from_level(level)
         self.last_moved = pygame.time.get_ticks()
-        head = SnakeHead(*head_loc, facing)
+        head = SnakeHead(*head_loc, facing, self.colors)
         self.segs = [head]
         seg_loc = head.loc
         for _ in range(1, size):
             seg_loc = seg_loc.step(self.backward)
-            self.segs.append(SnakeSegment(*seg_loc))
+            self.segs.append(SnakeSegment(*seg_loc, self.colors))
+
+    @staticmethod
+    def _colors_from_level(level):
+        lo = 1
+        hi = WIN_LEVEL
+        wlo = (hi - level) / (hi - lo)
+        whi = 1 - wlo
+        clo = (0, 0, 255)
+        chi = (255, 0, 0)
+        r = int(clo[0] * wlo + chi[0] * whi)
+        g = int(clo[1] * wlo + chi[1] * whi)
+        b = int(clo[2] * wlo + chi[2] * whi)
+        fill = (r, g, b)
+        edge = (r, 255, b)
+        return fill, edge
 
     def __len__(self):
         return len(self.segs)
@@ -157,7 +174,7 @@ class Snake:
 
         if new_loc == apple.loc:
             result = 'apple'
-            new_neck = SnakeSegment(*head.loc)
+            new_neck = SnakeSegment(*head.loc, self.colors)
             self.segs.insert(1, new_neck)
             head.move(*new_loc)
         elif self.collide(new_loc):
@@ -439,19 +456,6 @@ def main():
     game = Game()
     game.mainloop()
 
-def test_head():
-    """Test head segment rendering."""
-    pygame.init()
-    screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
-    screen.fill(COLOR.BACKGROUND)
-    head = SnakeHead(4, 4, 'n')
-    head.blit(screen)
-    pygame.display.flip()
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                sys.exit()
-        pygame.time.delay(200)
 
 if __name__ == '__main__':
     main()
