@@ -5,7 +5,6 @@ Learning game dev with Python and pygame.
 
 ## roadmap
 
-- levels: start from minimal size and speed, increase speed and restart when max size reached
 - snake changes color as speed increases, from blue to red
 - good and bad apples: good grow, bad shrink
 - polish and balance: colors, speed progression, win size, total levels.
@@ -15,5 +14,4 @@ Learning game dev with Python and pygame.
 ## issues
 
 - use transparency in all sprites so that they do not cover grid lines
-- win screen: any key takes to next level, lose screen: any key restarts game
 - status bar: add fps (pygame.time.Clock.get_fps())

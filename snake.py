@@ -13,9 +13,9 @@ import gridlib
 
 GRID = gridlib.Grid(20, 20)
 TILE = pygame.Rect(0, 0, 32, 32)
-START_SIZE = 2
-START_LEVEL = 1
+START_SIZE = 3
 WIN_SIZE = 10
+WIN_LEVEL = 10
 
 def coord_rel_to_abs(coords, rect):
     """Return coordinate tuple changed from relative to absolute within rect.
@@ -51,15 +51,18 @@ class TileSprite:
 
 class Apple(TileSprite):
     """Apple that the snake eats to grow."""
-    def __init__(self):
+    def __init__(self, snake):
         super().__init__()
         pygame.draw.ellipse(self.image, COLOR.APPLE,
                             self.rect.inflate(0, -int(0.2 * TILE.h)))
-        self.move()
+        self.move(snake)
 
-    def move(self):
-        """Move apple to random location."""
-        self.loc = GRID.random_loc()
+    def move(self, snake):
+        """Move apple to random location, do not move on snake."""
+        apple_on_snake = True
+        while apple_on_snake:
+            self.loc = GRID.random_loc()
+            apple_on_snake = snake.collide(self.loc)
         self._update_rect()
 
 
@@ -117,14 +120,19 @@ class SnakeHead(SnakeSegment):
 
 class Snake:
     """Snake consisting of multiple segments."""
-    def __init__(self, seg_locs, facing, speed=1):
+    def __init__(self, head_loc, facing, size, level):
         self.facing = facing
         self.backward = gridlib.opposite_dir(facing)
-        self.speed = speed
+        # speed in steps per second
+        self.speed = level + 4
         self.delay = 1000 // self.speed
         self.last_moved = pygame.time.get_ticks()
-        self.segs = [SnakeHead(*seg_locs[0], facing)]
-        self.segs += [SnakeSegment(*x) for x in seg_locs[1:]]
+        head = SnakeHead(*head_loc, facing)
+        self.segs = [head]
+        seg_loc = head.loc
+        for _ in range(1, size):
+            seg_loc = seg_loc.step(self.backward)
+            self.segs.append(SnakeSegment(*seg_loc))
 
     def __len__(self):
         return len(self.segs)
@@ -239,7 +247,7 @@ class Text:
         surf.blit(self.image, self.rect)
 
 class StatusBar:
-    def __init__(self, size, score, level):
+    def __init__(self):
         self.image = pygame.Surface((GRID.w * TILE.w, TILE.h)).convert()
         self.rect = self.image.get_rect(bottom=GRID.h * TILE.h)
         self.font = pygame.font.Font(None, int(TILE.h * 0.9))
@@ -252,46 +260,52 @@ class StatusBar:
         self.coord_score = dict(centerx=surf_rect.centerx, centery=surf_rect.centery)
         self.coord_level = dict(right=surf_rect.right - int(TILE.w * 0.5), centery=surf_rect.centery)
 
-        self.update(level=level, size=size, score=score)
+        self.size_rect = self.font.render('Size: XXX', True, self.color).get_rect(**self.coord_size)
+        self.score_rect = self.font.render('Score: XXX', True, self.color).get_rect(**self.coord_score)
+        self.level_rect = self.font.render('Level: XXX', True, self.color).get_rect(**self.coord_level)
 
 
     def update(self, size=None, score=None, level=None):
         if size is not None:
+            self.image.fill(self.transparent_color, self.size_rect)
             text = f'Size: {size}'
             surf = self.font.render(text, True, self.color)
-            rect = surf.get_rect(**self.coord_size)
-            self.image.fill(self.transparent_color, rect)
-            self.image.blit(surf, rect)
+            self.size_rect = surf.get_rect(**self.coord_size)
+            self.image.blit(surf, self.size_rect)
         if score is not None:
+            self.image.fill(self.transparent_color, self.score_rect)
             text = f'Score: {score}'
             surf = self.font.render(text, True, self.color)
-            rect = surf.get_rect(**self.coord_score)
-            self.image.fill(self.transparent_color, rect)
-            self.image.blit(surf, rect)
+            self.score_rect = surf.get_rect(**self.coord_score)
+            self.image.blit(surf, self.score_rect)
         if level is not None:
+            self.image.fill(self.transparent_color, self.level_rect)
             text = f'Level: {level}'
             surf = self.font.render(text, True, self.color)
-            rect = surf.get_rect(**self.coord_level)
-            self.image.fill(self.transparent_color, rect)
-            self.image.blit(surf, rect)
+            self.level_rect = surf.get_rect(**self.coord_level)
+            self.image.blit(surf, self.level_rect)
 
     def draw(self, surf):
         surf.blit(self.image, self.rect)
 
 class Stats:
-    """Game stats: size, level, score."""
-    def __init__(self):
+    """Game stats: size, score, level."""
+    def __init__(self, status_bar):
+        self.status_bar = status_bar
         self.size = START_SIZE
-        self.level = START_LEVEL
         self.score = 0
+        self.level = 1
+        self.status_bar.update(size=self.size, score=self.score, level=self.level)
 
     def next_level(self):
         self.level += 1
         self.size = START_SIZE
+        self.status_bar.update(size=self.size, level=self.level)
 
     def next_size(self):
         self.size += 1
         self.score += self.level
+        self.status_bar.update(size=self.size, score=self.score)
 
 
 class GameState(enum.Enum):
@@ -308,15 +322,20 @@ class Game:
         self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
         self.intro = IntroScreen()
         self.background = Background()
-        self.status_bar = StatusBar(2, 0, 1)
-        start_facing = 'e'
-        self.snake = Snake(((4, 4), (3, 4)), start_facing, 10)
-        self.apple = Apple()
-        self.state = GameState.INTRO
-        self.stats = Stats()
         self.text_pause = Text('PAUSE', pygame.Color('white'))
         self.text_win = Text('You win!', pygame.Color('white'))
         self.text_lose = Text('You lose!', pygame.Color('white'))
+        self.status_bar = StatusBar()
+
+        self.stats = Stats(self.status_bar)
+        self.snake = None
+        self.apple = None
+        self.state = GameState.INTRO
+
+    def _start_new_level(self):
+        self.snake = Snake((3, 3), 's', self.stats.size, self.stats.level)
+        self.apple = Apple(self.snake)
+        self.state = GameState.GET_READY
 
     def mainloop(self):
         clock = pygame.time.Clock()
@@ -339,7 +358,7 @@ class Game:
                 continue
 
             if self.state == GameState.INTRO:
-                self.state = GameState.GET_READY
+                self._start_new_level()
                 continue
 
             self._event_handle_pause(event)
@@ -384,15 +403,17 @@ class Game:
 
         move_result = self.snake.move(self.apple)
         if move_result == 'apple':
-            apple_on_snake = True
-            while apple_on_snake:
-                self.apple.move()
-                apple_on_snake = self.snake.collide(self.apple.loc)
+            self.apple.move(self.snake)
             self.stats.next_size()
             assert self.stats.size == len(self.snake)
-            self.status_bar.update(size=self.stats.size, score=self.stats.score)
+
             if len(self.snake) == WIN_SIZE:
-                self.state = GameState.WIN
+                if self.stats.level == WIN_LEVEL:
+                    self.state = GameState.WIN
+                else:
+                    self.stats.next_level()
+                    self._start_new_level()
+
         elif move_result == 'self':
             self.state = GameState.LOSE
 
