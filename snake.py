@@ -11,11 +11,12 @@ import pygame
 
 import gridlib
 
-GRID = gridlib.Grid(20, 20)
+GRID = gridlib.Grid(15, 15)
 TILE = pygame.Rect(0, 0, 32, 32)
-START_SIZE = 9
+START_SIZE = 3
 WIN_SIZE = 10
 WIN_LEVEL = 10
+APPLES = 4 # 1 good, other bad
 
 def coord_rel_to_abs(coords, rect):
     """Return coordinate tuple changed from relative to absolute within rect.
@@ -29,7 +30,6 @@ def coord_rel_to_abs(coords, rect):
 
 class COLOR(SimpleNamespace):
     BACKGROUND = pygame.Color('black')
-    APPLE = pygame.Color('green')
     GRID_LINE = pygame.Color('gray')
 
 class TileSprite:
@@ -49,18 +49,22 @@ class TileSprite:
 
 class Apple(TileSprite):
     """Apple that the snake eats to grow."""
-    def __init__(self, snake):
+    def __init__(self, good, infeasible_locs):
         super().__init__()
-        pygame.draw.ellipse(self.image, COLOR.APPLE,
+        self.good = good
+        color = (0, 255, 0) if good else (150, 75, 0)
+        pygame.draw.ellipse(self.image, color,
                             self.rect.inflate(0, -int(0.2 * TILE.h)))
-        self.move(snake)
+        self.move(infeasible_locs)
 
-    def move(self, snake):
+    def move(self, infeasible_locs):
         """Move apple to random location, do not move on snake."""
-        apple_on_snake = True
-        while apple_on_snake:
-            self.loc = GRID.random_loc()
-            apple_on_snake = snake.collide(self.loc)
+        feasible = False
+        while not feasible:
+            new_loc = GRID.random_loc()
+            if new_loc not in infeasible_locs:
+                feasible = True
+        self.loc = new_loc
         self._update_rect()
 
 
@@ -160,7 +164,7 @@ class Snake:
             self.facing = facing
             self.segs[0].turn(facing)
 
-    def move(self, apple):
+    def move(self, apples):
         """
         Move in the facing direction and return result. Grow if got apple.
         Returns: None (no move), 'move', 'apple', 'self'.
@@ -172,10 +176,28 @@ class Snake:
         head = self.segs[0]
         new_loc = head.loc.step(self.facing)
 
-        if new_loc == apple.loc:
-            result = 'apple'
-            new_neck = SnakeSegment(*head.loc, self.colors)
-            self.segs.insert(1, new_neck)
+        hit_apple = None
+        for apple in apples:
+            if new_loc == apple.loc:
+                hit_apple = apple
+                break
+
+        if hit_apple is not None:
+            result = hit_apple
+            if hit_apple.good:
+                new_neck = SnakeSegment(*head.loc, self.colors)
+                self.segs.insert(1, new_neck)
+            else:
+                if len(self) == 2:
+                    # head + 1 segment: delete that segment
+                    self.segs.pop()
+                elif len(self) > 2:
+                    # head + 2 or more segments: delete tail, move pre-tail
+                    self.segs.pop()
+                    tail = self.segs.pop()
+                    tail.move(*head.loc)
+                    self.segs.insert(1, tail)
+
             head.move(*new_loc)
         elif self.collide(new_loc):
             result = 'self'
@@ -213,7 +235,7 @@ class IntroScreen:
             self.image.blit(surf, rect)
 
         render('SNAKE', 2, 3)
-        render('Move around and eat apples to grow.', 6)
+        render('Move around and eat good apples to grow.', 6)
         render(f'Grow to size {WIN_SIZE} to get to the next level.', 7)
         render('Speed increases with every level.', 8)
         render('If snake bites itself it dies.', 9)
@@ -314,15 +336,21 @@ class Stats:
         self.level = 1
         self.status_bar.update(size=self.size, score=self.score, level=self.level)
 
-    def next_level(self):
+    def level_up(self):
         self.level += 1
         self.size = START_SIZE
         self.status_bar.update(size=self.size, level=self.level)
 
-    def next_size(self):
+    def size_up(self):
         self.size += 1
         self.score += self.level
         self.status_bar.update(size=self.size, score=self.score)
+
+    def size_down(self):
+        if self.size == 1:
+            return
+        self.size -= 1
+        self.status_bar.update(size=self.size)
 
 
 class GameState(enum.Enum):
@@ -346,13 +374,22 @@ class Game:
 
         self.stats = Stats(self.status_bar)
         self.snake = None
-        self.apple = None
+        self.apples = []
         self.state = GameState.INTRO
 
     def _start_new_level(self):
         self.snake = Snake((3, 3), 's', self.stats.size, self.stats.level)
-        self.apple = Apple(self.snake)
+        self.apples = [Apple(True, self.occupied_locs())]
+        for _ in range(1, APPLES):
+            self.apples.append(Apple(False, self.occupied_locs()))
         self.state = GameState.GET_READY
+
+    def occupied_locs(self):
+        """Generator returns locations occupied by snake segments or apples."""
+        for seg in self.snake.segs:
+            yield seg.loc
+        for apple in self.apples:
+            yield apple.loc
 
     def mainloop(self):
         clock = pygame.time.Clock()
@@ -418,17 +455,21 @@ class Game:
         if self.state != GameState.RUN:
             return
 
-        move_result = self.snake.move(self.apple)
-        if move_result == 'apple':
-            self.apple.move(self.snake)
-            self.stats.next_size()
+        move_result = self.snake.move(self.apples)
+        if isinstance(move_result, Apple):
+            apple = move_result
+            apple.move(self.occupied_locs())
+            if apple.good:
+                self.stats.size_up()
+            else:
+                self.stats.size_down()
             assert self.stats.size == len(self.snake)
 
             if len(self.snake) == WIN_SIZE:
                 if self.stats.level == WIN_LEVEL:
                     self.state = GameState.WIN
                 else:
-                    self.stats.next_level()
+                    self.stats.level_up()
                     self._start_new_level()
 
         elif move_result == 'self':
@@ -440,7 +481,8 @@ class Game:
         else:
             self.background.draw(self.screen)
             self.snake.blit(self.screen)
-            self.apple.blit(self.screen)
+            for apple in self.apples:
+                apple.blit(self.screen)
             if self.state == GameState.PAUSE:
                 self.text_pause.draw(self.screen)
             elif self.state == GameState.WIN:
