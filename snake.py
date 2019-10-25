@@ -36,6 +36,8 @@ class TileSprite:
     """Base class to represent single tile sprites."""
     def __init__(self):
         self.image = pygame.Surface((TILE.w, TILE.h))
+        self.transparent_color = (0, 0, 0)
+        self.image.set_colorkey(self.transparent_color, pygame.RLEACCEL)
         self.rect = TILE.copy()
         self.loc = None
 
@@ -234,17 +236,16 @@ class IntroScreen:
             rect = surf.get_rect(top=TILE.h * grid_row, centerx=self.rect.centerx)
             self.image.blit(surf, rect)
 
-        render('SNAKE', 2, 3)
-        render('Move around and eat good apples to grow.', 6)
-        render(f'Grow to size {WIN_SIZE} to get to the next level.', 7)
-        render('Speed increases with every level.', 8)
-        render('If snake bites itself it dies.', 9)
-        render('CONTROLS', 11)
-        render('W, A, S, D, arrow keys: turn', 12)
-        render('spacebar: pause', 13)
-        render('G: toggle grid lines', 14)
-        render('ESC: quit', 15)
-        render('Press any key to start.', 18)
+        render('SNAKE', 1, 3)
+        render('Move around and eat good apples to grow.', 4)
+        render(f'Grow to size {WIN_SIZE} to get to the next level.', 5)
+        render('Speed increases with every level.', 6)
+        render('If snake bites itself it dies.', 7)
+        render('W, A, S, D, arrow keys: turn', 9)
+        render('spacebar: pause', 10)
+        render('G: toggle grid lines', 11)
+        render('ESC: quit', 12)
+        render('Press any key to start.', 14)
 
 
     def draw(self, surf):
@@ -287,24 +288,26 @@ class Text:
 
 class StatusBar:
     def __init__(self):
-        self.image = pygame.Surface((GRID.w * TILE.w, TILE.h)).convert()
-        self.rect = self.image.get_rect(bottom=GRID.h * TILE.h)
+        screen = pygame.display.get_surface()
+        self.rect = screen.get_rect()
+        self.image = pygame.Surface(self.rect.size).convert()
         self.font = pygame.font.Font(None, int(TILE.h * 0.9))
         self.color = pygame.Color('white')
         self.transparent_color = (0, 0, 0)
         self.image.set_colorkey(self.transparent_color, pygame.RLEACCEL)
 
-        surf_rect = self.image.get_rect()
-        self.coord_size = dict(left=int(TILE.w * 0.5), centery=surf_rect.centery)
-        self.coord_score = dict(centerx=surf_rect.centerx, centery=surf_rect.centery)
-        self.coord_level = dict(right=surf_rect.right - int(TILE.w * 0.5), centery=surf_rect.centery)
+        self.coord_size = dict(left=int(TILE.w * 0.5), bottom=self.rect.bottom)
+        self.coord_score = dict(centerx=self.rect.centerx, bottom=self.rect.bottom)
+        self.coord_level = dict(right=self.rect.right - int(TILE.w * 0.5), bottom=self.rect.bottom)
+        self.coord_fps = dict(right=self.rect.right - int(TILE.w * 0.5), top=self.rect.top)
 
-        self.size_rect = self.font.render('Size: XXX', True, self.color).get_rect(**self.coord_size)
-        self.score_rect = self.font.render('Score: XXX', True, self.color).get_rect(**self.coord_score)
-        self.level_rect = self.font.render('Level: XXX', True, self.color).get_rect(**self.coord_level)
+        dummy_text = self.font.render('AAAAAA: XXX', True, self.color)
+        self.size_rect = dummy_text.get_rect(**self.coord_size)
+        self.score_rect = dummy_text.get_rect(**self.coord_score)
+        self.level_rect = dummy_text.get_rect(**self.coord_level)
+        self.fps_rect = dummy_text.get_rect(**self.coord_fps)
 
-
-    def update(self, size=None, score=None, level=None):
+    def update(self, size=None, score=None, level=None, fps=None):
         if size is not None:
             self.image.fill(self.transparent_color, self.size_rect)
             text = f'Size: {size}'
@@ -323,6 +326,12 @@ class StatusBar:
             surf = self.font.render(text, True, self.color)
             self.level_rect = surf.get_rect(**self.coord_level)
             self.image.blit(surf, self.level_rect)
+        if fps is not None:
+            self.image.fill(self.transparent_color, self.fps_rect)
+            text = f'FPS: {int(fps)}'
+            surf = self.font.render(text, True, self.color)
+            self.fps_rect = surf.get_rect(**self.coord_fps)
+            self.image.blit(surf, self.fps_rect)
 
     def draw(self, surf):
         surf.blit(self.image, self.rect)
@@ -392,9 +401,9 @@ class Game:
             yield apple.loc
 
     def mainloop(self):
-        clock = pygame.time.Clock()
+        self.clock = pygame.time.Clock()
         while True:
-            clock.tick(60)
+            self.clock.tick(60)
             self.events()
             self.logic()
             self.render()
@@ -474,6 +483,8 @@ class Game:
 
         elif move_result == 'self':
             self.state = GameState.LOSE
+
+        self.status_bar.update(fps=self.clock.get_fps())
 
     def render(self):
         if self.state == GameState.INTRO:
