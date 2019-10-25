@@ -14,7 +14,7 @@ import gridlib
 GRID = gridlib.Grid(15, 15)
 TILE = pygame.Rect(0, 0, 32, 32)
 START_SIZE = 3
-WIN_SIZE = 10
+WIN_SIZE = 15
 WIN_LEVEL = 10
 APPLES = 4 # 1 good, other bad
 
@@ -230,21 +230,20 @@ class IntroScreen:
         self.image = pygame.Surface(self.rect.size).convert()
         self.image.fill(COLOR.BACKGROUND)
 
+        white = (255, 255, 255)
         def render(text, grid_row, text_size=1):
-            font = pygame.font.Font(None, TILE.h * text_size)
-            surf = font.render(text, True, pygame.Color('white'))
-            rect = surf.get_rect(top=TILE.h * grid_row, centerx=self.rect.centerx)
-            self.image.blit(surf, rect)
+            GridText(text, white, grid_row, size=text_size, parent_rect=self.rect).draw(self.image)
 
         render('SNAKE', 1, 3)
         render('Move around and eat good apples to grow.', 4)
         render(f'Grow to size {WIN_SIZE} to get to the next level.', 5)
-        render('Speed increases with every level.', 6)
-        render('If snake bites itself it dies.', 7)
-        render('W, A, S, D, arrow keys: turn', 9)
-        render('spacebar: pause', 10)
-        render('G: toggle grid lines', 11)
-        render('ESC: quit', 12)
+        render(f'Comlete {WIN_LEVEL} levels to win the game.', 6)
+        render('Speed increases with every level.', 7)
+        render('If snake bites itself it dies.', 8)
+        render('W, A, S, D, arrow keys: turn', 10)
+        render('spacebar: pause', 11)
+        render('G: toggle grid lines', 12)
+        render('ESC: quit', 13)
         render('Press any key to start.', 14)
 
 
@@ -275,13 +274,26 @@ class Background:
     def draw(self, surf):
         surf.blit(self.image, self.rect)
 
-class Text:
-    def __init__(self, text, color, center=None):
-        font = pygame.font.Font(None, 128)
+
+class GridText:
+    """Text positioned on a grid. Size, top and left in grid tile units.
+    Centered vertically if top is None, horizontally if left is None."""
+    def __init__(self, text, color, top=None, left=None, size=1, parent_rect=None):
+        font = pygame.font.Font(None, size * TILE.h)
         self.image = font.render(text, True, color)
-        if center is None:
-            center = pygame.display.get_surface().get_rect().center
-        self.rect = self.image.get_rect(center=center)
+        if parent_rect is None:
+            parent_rect = pygame.display.get_surface().get_rect()
+        pos = dict()
+        if left is None:
+            pos['centerx'] = parent_rect.centerx
+        else:
+            pos['left'] = left * TILE.w
+        if top is None:
+            pos['centery'] = parent_rect.centery
+        else:
+            pos['top'] = top * TILE.h
+
+        self.rect = self.image.get_rect(**pos)
 
     def draw(self, surf):
         surf.blit(self.image, self.rect)
@@ -367,6 +379,7 @@ class GameState(enum.Enum):
     GET_READY = enum.auto()
     RUN = enum.auto()
     PAUSE = enum.auto()
+    LEVEL_UP = enum.auto()
     WIN = enum.auto()
     LOSE = enum.auto()
 
@@ -376,15 +389,24 @@ class Game:
         self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
         self.intro = IntroScreen()
         self.background = Background()
-        self.text_pause = Text('PAUSE', pygame.Color('white'))
-        self.text_win = Text('You win!', pygame.Color('white'))
-        self.text_lose = Text('You lose!', pygame.Color('white'))
+        white = (255, 255, 255)
+        self.text_pause = GridText('PAUSE', white, size=3)
+        self.text_win = GridText('You win!', white, size=4)
+        self.text_lose = GridText('You lose!', white, size=4)
+        self.text_get_ready = GridText('Press direction to start moving', white)
+
+        # really need a multiline text for this...
+        line_1 = GridText('Level complete!', white, top=GRID.h // 2 - 1, size=2)
+        line_2 = GridText('Press any key to continue', white, top=GRID.h // 2 + 1)
+        self.text_level_up = (line_1, line_2)
+
         self.status_bar = StatusBar()
 
         self.stats = Stats(self.status_bar)
         self.snake = None
         self.apples = []
         self.state = GameState.INTRO
+        self.after_level_up = False
 
     def _start_new_level(self):
         self.snake = Snake((3, 3), 's', self.stats.size, self.stats.level)
@@ -420,8 +442,13 @@ class Game:
             if event.type != pygame.KEYDOWN:
                 continue
 
+            # press any key
             if self.state == GameState.INTRO:
                 self._start_new_level()
+                continue
+            if self.state == GameState.LEVEL_UP:
+                self.state = GameState.GET_READY
+                self.after_level_up = True
                 continue
 
             self._event_handle_pause(event)
@@ -461,6 +488,11 @@ class Game:
             self.background.toggle_grid_lines()
 
     def logic(self):
+        if self.state == GameState.GET_READY and self.after_level_up:
+            self.stats.level_up()
+            self._start_new_level()
+            self.after_level_up = False
+
         if self.state != GameState.RUN:
             return
 
@@ -478,8 +510,7 @@ class Game:
                 if self.stats.level == WIN_LEVEL:
                     self.state = GameState.WIN
                 else:
-                    self.stats.level_up()
-                    self._start_new_level()
+                    self.state = GameState.LEVEL_UP
 
         elif move_result == 'self':
             self.state = GameState.LOSE
@@ -496,6 +527,11 @@ class Game:
                 apple.blit(self.screen)
             if self.state == GameState.PAUSE:
                 self.text_pause.draw(self.screen)
+            elif self.state == GameState.GET_READY:
+                self.text_get_ready.draw(self.screen)
+            elif self.state == GameState.LEVEL_UP:
+                for line in self.text_level_up:
+                    line.draw(self.screen)
             elif self.state == GameState.WIN:
                 self.text_win.draw(self.screen)
             elif self.state == GameState.LOSE:
