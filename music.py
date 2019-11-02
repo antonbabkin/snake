@@ -1,14 +1,15 @@
 """
-Temporary module to implement music in game.
-Music is loaded from a MIDI file, and as the game speed increases, so does the music tempo.
+Music manipulation.
 """
 
 import io
 import pygame
-from mido import MidiFile
+from mido import MidiFile, bpm2tempo, tempo2bpm
 
 
 class MidiMusic:
+    """Class will start and stop infinite loop playback of a given MIDI file.
+    Tempo can be changed."""
     def __init__(self, filename):
         self.buffer = io.BytesIO()
         self.mid = MidiFile(filename)
@@ -19,27 +20,40 @@ class MidiMusic:
         pygame.mixer.music.load(self.buffer)
 
     def start(self):
-        print('start')
         pygame.mixer.music.play(-1)
 
     def stop(self):
-        print('stop')
         pygame.mixer.music.stop()
 
-    def set_tempo(self, bpm):
+    def set_tempo(self, bpm=None, delta=None):
+        """Set first "set_tempo" message to new bpm, or change bpm by delta.
+        Integer delta for old+delta, float for old*(1+delta).
+        Playback stops and needs to be restarted after."""
+        assert not (bpm is None and delta is None)
         track = self.mid.tracks[0]
-        for idx, msg in enumerate(track):
+        for i, msg in enumerate(track):
             if msg.type == 'set_tempo':
+                if bpm is None:
+                    old_bpm = tempo2bpm(msg.tempo)
+                    if isinstance(delta, int):
+                        bpm = old_bpm + delta
+                    elif isinstance(delta, float):
+                        bpm = old_bpm * (1 + delta)
+                    else:
+                        raise ValueError(f'Unexpected value of delta: {delta}')
+                tempo = bpm2tempo(bpm)
+
+                track[i] = msg.copy(tempo=tempo)
                 break
-        track[idx] = msg.copy(tempo=int(msg.tempo * 1.1))
-        self.stop()
+
+        pygame.mixer.music.stop()
         # pygame.mixer.music.unload() <-- will only be added in pygame 2.0. is it a potential memory leak?
         self.buffer.close()
         self.buffer = io.BytesIO()
         self.mid.save(file=self.buffer)
         self.buffer.seek(0)
         pygame.mixer.music.load(self.buffer)
-        self.start()
+
 
     def dump(self):
         for i, track in enumerate(self.mid.tracks):
@@ -53,7 +67,8 @@ def main():
 
     pygame.display.set_mode((150, 50))
 
-    music = MidiMusic('c_scale.mid')
+    # music = MidiMusic('c_scale.mid')
+    music = MidiMusic('assets/mountain_piano_short.mid')
     music.start()
 
     while True:
@@ -68,7 +83,10 @@ def main():
                 elif event.key == pygame.K_d:
                     music.dump()
                 elif event.key == pygame.K_UP:
-                    music.set_tempo(150)
+                    music.set_tempo(delta=0.1)
+                elif event.key == pygame.K_DOWN:
+                    music.set_tempo(delta=-0.1)
+
 
 
 if __name__ == '__main__':
