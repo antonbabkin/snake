@@ -10,11 +10,12 @@ import math
 import pygame
 
 import gridlib
+from music import MidiMusic
 
 GRID = gridlib.Grid(15, 15)
 TILE = pygame.Rect(0, 0, 32, 32)
 START_SIZE = 3
-WIN_SIZE = 15
+WIN_SIZE = 10
 WIN_LEVEL = 10
 APPLES = 4 # 1 good, other bad
 
@@ -131,7 +132,7 @@ class Snake:
         self.facing = facing
         self.backward = gridlib.opposite_dir(facing)
         # speed in steps per second
-        self.speed = level + 4
+        self.speed = level + 3
         self.delay = 1000 // self.speed
         self.colors = self._colors_from_level(level)
         self.last_moved = pygame.time.get_ticks()
@@ -159,6 +160,12 @@ class Snake:
 
     def __len__(self):
         return len(self.segs)
+
+    def speed_to_bpm(self):
+        steps_per_second = self.speed
+        steps_per_minute = steps_per_second * 60
+        steps_per_beat = 2
+        return steps_per_minute / steps_per_beat
 
     def turn(self, facing):
         """Change facing direction. Can not turn backward."""
@@ -386,6 +393,7 @@ class GameState(enum.Enum):
 class Game:
     def __init__(self):
         pygame.init()
+        self.clock = pygame.time.Clock()
         self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
         self.intro = IntroScreen()
         self.background = Background()
@@ -394,6 +402,7 @@ class Game:
         self.text_win = GridText('You win!', white, size=4)
         self.text_lose = GridText('You lose!', white, size=4)
         self.text_get_ready = GridText('Press direction to start moving', white)
+        self.music = MidiMusic('assets/mountain_piano_short.mid')
 
         # really need a multiline text for this...
         line_1 = GridText('Level complete!', white, top=GRID.h // 2 - 1, size=2)
@@ -410,6 +419,7 @@ class Game:
 
     def _start_new_level(self):
         self.snake = Snake((3, 3), 's', self.stats.size, self.stats.level)
+        self.music.set_tempo(self.snake.speed_to_bpm())
         self.apples = [Apple(True, self.occupied_locs())]
         for _ in range(1, APPLES):
             self.apples.append(Apple(False, self.occupied_locs()))
@@ -423,7 +433,6 @@ class Game:
             yield apple.loc
 
     def mainloop(self):
-        self.clock = pygame.time.Clock()
         while True:
             self.clock.tick(60)
             self.events()
@@ -459,8 +468,11 @@ class Game:
     def _event_handle_pause(self, event):
         if event.key == pygame.K_SPACE:
             if self.state == GameState.PAUSE:
+                # todo: mixer.music.pause() does not work with MIDI
+                self.music.unpause()
                 self.state = GameState.RUN
             elif self.state == GameState.RUN:
+                self.music.pause()
                 self.state = GameState.PAUSE
 
 
@@ -481,6 +493,7 @@ class Game:
         self.snake.turn(dir_)
 
         if self.state == GameState.GET_READY and dir_ != self.snake.backward:
+            self.music.start()
             self.state = GameState.RUN
 
     def _event_handle_grid(self, event):
@@ -511,9 +524,11 @@ class Game:
                     self.state = GameState.WIN
                 else:
                     self.state = GameState.LEVEL_UP
+                self.music.stop()
 
         elif move_result == 'self':
             self.state = GameState.LOSE
+            self.music.stop()
 
         self.status_bar.update(fps=self.clock.get_fps())
 

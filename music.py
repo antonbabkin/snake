@@ -25,6 +25,15 @@ class MidiMusic:
     def stop(self):
         pygame.mixer.music.stop()
 
+    def pause(self):
+        # todo: music.pause() does not work for midi.
+        # can use set_volume(0) to "pause" and set it back to unpause.
+        # also try to save get_pos(), and then use it to set_pos() when unpause.
+        pygame.mixer.music.pause()
+
+    def unpause(self):
+        pygame.mixer.music.unpause()
+
     def set_tempo(self, bpm=None, delta=None):
         """Set first "set_tempo" message to new bpm, or change bpm by delta.
         Integer delta for old+delta, float for old*(1+delta).
@@ -86,7 +95,24 @@ def main():
                     music.set_tempo(delta=0.1)
                 elif event.key == pygame.K_DOWN:
                     music.set_tempo(delta=-0.1)
+                elif event.key == pygame.K_SPACE:
+                    if pygame.mixer.music.get_volume() > 0:
+                        pygame.mixer.music.set_volume(0)
+                    else:
+                        pygame.mixer.music.set_volume(1)
 
+def test_midi_pause():
+    """Looks like pause does not work for MIDI - it works for ogg."""
+    pygame.mixer.init()
+    pygame.mixer.music.load('assets/mountain_piano_short.mid')
+    # pygame.mixer.music.load('assets/mountain_piano_short.ogg')
+    pygame.mixer.music.play()
+    pygame.time.wait(3000)
+    pygame.mixer.music.pause()
+    # should pause for 3 seconds - but it keeps playing
+    pygame.time.wait(3000)
+    pygame.mixer.music.unpause()
+    pygame.time.wait(3000)
 
 
 if __name__ == '__main__':
