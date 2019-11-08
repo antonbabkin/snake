@@ -6,6 +6,16 @@ import io
 import pygame
 from mido import MidiFile, bpm2tempo, tempo2bpm
 
+class Sounds:
+    """Container for multiple sounds.
+    Example:
+    s = Sounds(moo='moo.wav', boo='boo.mp3')
+    s.moo.play()
+    """
+    def __init__(self, **kwargs):
+        for name, file in kwargs.items():
+            self.__dict__[name] = pygame.mixer.Sound(file)
+
 
 class MidiMusic:
     """Class will start and stop infinite loop playback of a given MIDI file.
@@ -114,7 +124,15 @@ def test_midi_pause():
     pygame.mixer.music.unpause()
     pygame.time.wait(3000)
 
+def test_sounds():
+    pygame.mixer.init()
+    s = Sounds(moo='assets/sound_eat_good.ogg')
+    s.moo.play(5)
+    while pygame.mixer.get_busy():
+        pygame.time.wait(100)
 
 if __name__ == '__main__':
+    pygame.init()
 
-    main()
+    # main()
+    test_sounds()

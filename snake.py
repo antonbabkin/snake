@@ -10,11 +10,12 @@ import math
 import pygame
 
 import gridlib
-from music import MidiMusic
+from music import Sounds, MidiMusic
 
 GRID = gridlib.Grid(15, 15)
 TILE = pygame.Rect(0, 0, 32, 32)
 START_SIZE = 3
+START_SPEED = 6 # steps per second
 WIN_SIZE = 10
 WIN_LEVEL = 10
 APPLES = 4 # 1 good, other bad
@@ -132,7 +133,7 @@ class Snake:
         self.facing = facing
         self.backward = gridlib.opposite_dir(facing)
         # speed in steps per second
-        self.speed = level + 3
+        self.speed = START_SPEED + level - 1
         self.delay = 1000 // self.speed
         self.colors = self._colors_from_level(level)
         self.last_moved = pygame.time.get_ticks()
@@ -406,10 +407,16 @@ class Game:
         self.background = Background()
         white = (255, 255, 255)
         self.text_pause = GridText('PAUSE', white, size=3)
-        self.text_win = GridText('You win!', white, size=4)
-        self.text_lose = GridText('You lose!', white, size=4)
+        self.text_win = GridText('You rock!', white, size=4)
+        self.text_lose = GridText('You suck!', white, size=4)
         self.text_get_ready = GridText('Press direction to start moving', white)
         self.music = None
+        self.sounds = Sounds(**{'eat_good': 'assets/sound_eat_good.ogg',
+            'eat_bad': 'assets/sound_eat_bad.ogg',
+            'pause': 'assets/pause.ogg',
+            'get_ready': 'assets/get_ready.ogg',
+            'win_level': 'assets/win_level.ogg',
+            'lose': 'assets/crash.ogg'})
 
         # really need a multiline text for this...
         line_1 = GridText('Level complete!', white, top=GRID.h // 2 - 1, size=2)
@@ -425,6 +432,7 @@ class Game:
         self.after_level_up = False
 
     def _start_new_level(self):
+        self.sounds.get_ready.play()
         self.snake = Snake((3, 3), 's', self.stats.size, self.stats.level)
         self.music.set_tempo(self.snake.speed_to_bpm())
         self.apples = [Apple(True, self.occupied_locs())]
@@ -479,9 +487,11 @@ class Game:
             if self.state == GameState.PAUSE:
                 # todo: mixer.music.pause() does not work with MIDI
                 self.music.unpause()
+                self.sounds.pause.play()
                 self.state = GameState.RUN
             elif self.state == GameState.RUN:
                 self.music.pause()
+                self.sounds.pause.play()
                 self.state = GameState.PAUSE
 
 
@@ -524,8 +534,10 @@ class Game:
             apple.move(self.occupied_locs())
             if apple.good:
                 self.stats.size_up()
+                self.sounds.eat_good.play()
             else:
                 self.stats.size_down()
+                self.sounds.eat_bad.play()
             assert self.stats.size == len(self.snake)
 
             if len(self.snake) == WIN_SIZE:
@@ -536,11 +548,13 @@ class Game:
                     pygame.mixer.music.play(-1)
                 else:
                     self.state = GameState.LEVEL_UP
+                    self.sounds.win_level.play()
 
 
         elif move_result == 'self':
             self.state = GameState.LOSE
             self.music.stop()
+            self.sounds.lose.play()
             pygame.mixer.music.load('assets/frederic-chopin-piano-sonata-2-op35-3-funeral-march.mid')
             pygame.mixer.music.play()
 
