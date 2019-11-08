@@ -312,6 +312,13 @@ class GridText:
     def draw(self, surf):
         surf.blit(self.image, self.rect)
 
+class MultilineText:
+    def __init__(self, grid_texts):
+        self.grid_texts = grid_texts
+    def draw(self, surf):
+        for grid_text in self.grid_texts:
+            grid_text.draw(surf)
+
 class StatusBar:
     def __init__(self):
         screen = pygame.display.get_surface()
@@ -400,23 +407,7 @@ class GameState(enum.Enum):
 class Game:
     def __init__(self):
         pygame.init()
-
         pygame.mixer.init()
-        pygame.mixer.music.load('assets/edvard-grieg-peer-gynt1-morning-mood-piano.mid')
-        pygame.mixer.music.play(-1)
-
-
-
-        self.clock = pygame.time.Clock()
-        self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
-        self.intro = IntroScreen()
-        self.background = Background()
-        white = (255, 255, 255)
-        self.text_pause = GridText('PAUSE', white, size=3)
-        self.text_win = GridText('You win!', white, size=4)
-        self.text_lose = GridText('You lose!', white, size=4)
-        self.text_get_ready = GridText('Press direction to start moving', white)
-        self.music = None
         self.sounds = Sounds(**{'eat_good': 'assets/sound_eat_good.ogg',
             'eat_bad': 'assets/sound_eat_bad.ogg',
             'pause': 'assets/pause.ogg',
@@ -424,20 +415,34 @@ class Game:
             'win_level': 'assets/win_level.ogg',
             'lose': 'assets/crash.ogg'})
 
-        # really need a multiline text for this...
-        line_1 = GridText('Level complete!', white, top=GRID.h // 2 - 1, size=2)
-        line_2 = GridText('Press any key to continue', white, top=GRID.h // 2 + 1)
-        self.text_level_up = (line_1, line_2)
+        self.clock = pygame.time.Clock()
+        self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
+        self.intro = IntroScreen()
+        self.background = Background()
+        white = (255, 255, 255)
+        self.text_pause = GridText('PAUSE', white, size=3)
+        midy = GRID.h // 2
+        self.text_win = MultilineText((GridText('You win!', white, top=midy-2, size=4),
+            GridText('Press any key to restart', white, top=midy+2)))
+        self.text_lose = MultilineText((GridText('You lose!', white, top=midy-2, size=4),
+            GridText('Press any key to restart', white, top=midy+1)))
+        self.text_get_ready = GridText('Press direction to start moving', white)
+        self.text_level_up = MultilineText((GridText('Level complete!', white, top=midy-2, size=2),
+            GridText('Press any key to continue', white, top=midy)))
 
         self.status_bar = StatusBar()
 
+        self.start_new_game()
+
+    def start_new_game(self):
+        pygame.mixer.music.load('assets/edvard-grieg-peer-gynt1-morning-mood-piano.mid')
+        pygame.mixer.music.play(-1)
         self.stats = Stats(self.status_bar)
-        self.snake = None
         self.apples = []
         self.state = GameState.INTRO
         self.after_level_up = False
 
-    def _start_new_level(self):
+    def start_new_level(self):
         self.sounds.get_ready.play()
         self.snake = Snake((3, 3), 's', self.stats.size, self.stats.level)
         self.music.set_tempo(self.snake.speed_to_bpm())
@@ -466,22 +471,26 @@ class Game:
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 sys.exit()
 
-            if self.state in (GameState.WIN, GameState.LOSE):
-                continue
-
             if event.type != pygame.KEYDOWN:
                 continue
+
+            if self.state in (GameState.WIN, GameState.LOSE):
+                self.start_new_game()
+                pygame.event.pump()
+                return
 
             # press any key
             if self.state == GameState.INTRO:
                 pygame.mixer.music.stop()
                 self.music = MidiMusic('assets/mountain_piano_short.mid')
-                self._start_new_level()
-                continue
+                self.start_new_level()
+                pygame.event.pump()
+                return
             if self.state == GameState.LEVEL_UP:
                 self.state = GameState.GET_READY
                 self.after_level_up = True
-                continue
+                pygame.event.pump()
+                return
 
             self._event_handle_pause(event)
             self._event_handle_dir(event)
@@ -528,7 +537,7 @@ class Game:
     def logic(self):
         if self.state == GameState.GET_READY and self.after_level_up:
             self.stats.level_up()
-            self._start_new_level()
+            self.start_new_level()
             self.after_level_up = False
 
         if self.state != GameState.RUN:
@@ -579,8 +588,7 @@ class Game:
             elif self.state == GameState.GET_READY:
                 self.text_get_ready.draw(self.screen)
             elif self.state == GameState.LEVEL_UP:
-                for line in self.text_level_up:
-                    line.draw(self.screen)
+                self.text_level_up.draw(self.screen)
             elif self.state == GameState.WIN:
                 self.text_win.draw(self.screen)
             elif self.state == GameState.LOSE:
