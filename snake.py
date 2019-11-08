@@ -17,8 +17,8 @@ GRID = gridlib.Grid(15, 15, WRAP_AROUND_BOUNDS)
 TILE = pygame.Rect(0, 0, 32, 32)
 START_SIZE = 3
 START_SPEED = 6 # steps per second
-WIN_SIZE = 10
-WIN_LEVEL = 10
+WIN_SIZE = 5
+WIN_LEVEL = 5
 APPLES = 4 # 1 good, other bad
 
 def coord_rel_to_abs(coords, rect):
@@ -416,19 +416,24 @@ class Game:
             'lose': 'assets/crash.ogg'})
 
         self.clock = pygame.time.Clock()
+
+        # ignore keyboard input for a given duration after certain events (level up, win, lose)
+        self.ignore_input = False
+        self.ignore_input_duration = 1000
+        self.ignore_input_start_time = pygame.time.get_ticks() - self.ignore_input_duration - 1
+
         self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
         self.intro = IntroScreen()
         self.background = Background()
         white = (255, 255, 255)
         self.text_pause = GridText('PAUSE', white, size=3)
         midy = GRID.h // 2
-        self.text_win = MultilineText((GridText('You win!', white, top=midy-2, size=4),
-            GridText('Press any key to restart', white, top=midy+2)))
-        self.text_lose = MultilineText((GridText('You lose!', white, top=midy-2, size=4),
-            GridText('Press any key to restart', white, top=midy+1)))
+        self.text_win = GridText('You win!', white, top=midy-2, size=4)
+        self.text_lose = GridText('You lose!', white, top=midy-2, size=4)
+        self.text_press_restart = GridText('Press any key to restart', white, top=midy+2)
         self.text_get_ready = GridText('Press direction to start moving', white)
-        self.text_level_up = MultilineText((GridText('Level complete!', white, top=midy-2, size=2),
-            GridText('Press any key to continue', white, top=midy)))
+        self.text_level_up = GridText('Level complete!', white, top=midy-2, size=2)
+        self.text_level_up_press = GridText('Press any key to continue', white, top=midy+1)
 
         self.status_bar = StatusBar()
 
@@ -471,7 +476,7 @@ class Game:
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 sys.exit()
 
-            if event.type != pygame.KEYDOWN:
+            if event.type != pygame.KEYDOWN or self.ignore_input:
                 continue
 
             if self.state in (GameState.WIN, GameState.LOSE):
@@ -540,6 +545,9 @@ class Game:
             self.start_new_level()
             self.after_level_up = False
 
+        if pygame.time.get_ticks() > self.ignore_input_start_time + self.ignore_input_duration:
+            self.ignore_input = False
+
         if self.state != GameState.RUN:
             return
 
@@ -557,6 +565,8 @@ class Game:
 
             if len(self.snake) == WIN_SIZE:
                 self.music.stop()
+                self.ignore_input = True
+                self.ignore_input_start_time = pygame.time.get_ticks()
                 if self.stats.level == WIN_LEVEL:
                     self.state = GameState.WIN
                     pygame.mixer.music.load('assets/beethoven-symphony9-4-ode-to-joy-piano-solo.mid')
@@ -569,6 +579,8 @@ class Game:
         elif move_result in ('self', 'wall', 'size_zero'):
             self.state = GameState.LOSE
             self.music.stop()
+            self.ignore_input = True
+            self.ignore_input_start_time = pygame.time.get_ticks()
             self.sounds.lose.play()
             pygame.mixer.music.load('assets/frederic-chopin-piano-sonata-2-op35-3-funeral-march.mid')
             pygame.mixer.music.play()
@@ -589,10 +601,16 @@ class Game:
                 self.text_get_ready.draw(self.screen)
             elif self.state == GameState.LEVEL_UP:
                 self.text_level_up.draw(self.screen)
+                if not self.ignore_input:
+                    self.text_level_up_press.draw(self.screen)
             elif self.state == GameState.WIN:
                 self.text_win.draw(self.screen)
+                if not self.ignore_input:
+                    self.text_press_restart.draw(self.screen)
             elif self.state == GameState.LOSE:
                 self.text_lose.draw(self.screen)
+                if not self.ignore_input:
+                    self.text_press_restart.draw(self.screen)
             self.status_bar.draw(self.screen)
         pygame.display.flip()
 

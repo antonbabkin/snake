@@ -8,7 +8,6 @@ Learning game dev with Python and pygame.
 - feature list, install instructions and demo gif in readme, binary package on github releases
 - add credits screen
 - normalize sound and music volumes
-- restart back to intro after win or lose
 
 ### issues
 - pause/unpause background music
