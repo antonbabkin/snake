@@ -12,7 +12,8 @@ import pygame
 import gridlib
 from music import Sounds, MidiMusic
 
-GRID = gridlib.Grid(15, 15)
+WRAP_AROUND_BOUNDS = False
+GRID = gridlib.Grid(15, 15, WRAP_AROUND_BOUNDS)
 TILE = pygame.Rect(0, 0, 32, 32)
 START_SIZE = 3
 START_SPEED = 6 # steps per second
@@ -147,7 +148,7 @@ class Snake:
     @staticmethod
     def _colors_from_level(level):
         lo = 1
-        hi = WIN_LEVEL
+        hi = max(WIN_LEVEL, 2)
         wlo = (hi - level) / (hi - lo)
         whi = 1 - wlo
         clo = (0, 0, 255)
@@ -177,7 +178,7 @@ class Snake:
     def move(self, apples):
         """
         Move in the facing direction and return result. Grow if got apple.
-        Returns: None (no move), 'move', 'apple', 'self'.
+        Returns: None (no move), 'move', 'apple', 'self', 'wall' or 'size_zero'.
         """
         now = pygame.time.get_ticks()
         if now - self.last_moved < self.delay:
@@ -185,6 +186,9 @@ class Snake:
 
         head = self.segs[0]
         new_loc = head.loc.step(self.facing)
+
+        if new_loc is None:
+            return 'wall'
 
         hit_apple = None
         for apple in apples:
@@ -198,7 +202,9 @@ class Snake:
                 new_neck = SnakeSegment(*head.loc, self.colors)
                 self.segs.insert(1, new_neck)
             else:
-                if len(self) == 2:
+                if len(self) == 1:
+                    return 'size_zero'
+                elif len(self) == 2:
                     # head + 1 segment: delete that segment
                     self.segs.pop()
                 elif len(self) > 2:
@@ -247,7 +253,7 @@ class IntroScreen:
         render(f'Grow to size {WIN_SIZE} to get to the next level.', 5)
         render(f'Comlete {WIN_LEVEL} levels to win the game.', 6)
         render('Speed increases with every level.', 7)
-        render('If snake bites itself it dies.', 8)
+        render('CONTROLS', 9)
         render('W, A, S, D, arrow keys: turn', 10)
         render('spacebar: pause', 11)
         render('G: toggle grid lines', 12)
@@ -407,8 +413,8 @@ class Game:
         self.background = Background()
         white = (255, 255, 255)
         self.text_pause = GridText('PAUSE', white, size=3)
-        self.text_win = GridText('You rock!', white, size=4)
-        self.text_lose = GridText('You suck!', white, size=4)
+        self.text_win = GridText('You win!', white, size=4)
+        self.text_lose = GridText('You lose!', white, size=4)
         self.text_get_ready = GridText('Press direction to start moving', white)
         self.music = None
         self.sounds = Sounds(**{'eat_good': 'assets/sound_eat_good.ogg',
@@ -551,7 +557,7 @@ class Game:
                     self.sounds.win_level.play()
 
 
-        elif move_result == 'self':
+        elif move_result in ('self', 'wall', 'size_zero'):
             self.state = GameState.LOSE
             self.music.stop()
             self.sounds.lose.play()

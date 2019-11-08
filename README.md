@@ -5,11 +5,10 @@ Learning game dev with Python and pygame.
 
 ## roadmap
 
-- snake dies when hits wall
-- snake dies when size < 1 (from bad apples)
 - feature list, install instructions and demo gif in readme, binary package on github releases
 - add credits screen
 - normalize sound and music volumes
+- restart back to intro after win or lose
 
 ### issues
 - pause/unpause background music

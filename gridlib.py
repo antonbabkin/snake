@@ -22,10 +22,10 @@ def is_opposite_dir(a, b):
 
 
 class Grid:
-    def __init__(self, w, h):
-        # wraps around edges in both directions, can be customized in future
+    def __init__(self, w, h, wrap_around=False):
         self.w = w
         self.h = h
+        self.wrap = wrap_around
 
     def loc(self, x, y):
         return Location(self, x, y)
@@ -34,6 +34,9 @@ class Grid:
         x = randrange(0, self.w)
         y = randrange(0, self.h)
         return Location(self, x, y)
+
+    def out_of_bounds(self, x, y):
+        return x < 0 or x >= self.w or y < 0 or y >= self.h
 
 
 class Location:
@@ -59,15 +62,14 @@ class Location:
         return Location(self._grid, self.x, self.y)
 
     def move(self, dx, dy):
-        x = (self.x + dx) % self._grid.w
-        y = (self.y + dy) % self._grid.h
+        x = (self.x + dx)
+        y = (self.y + dy)
+        if self._grid.wrap:
+            x %= self._grid.w
+            y %= self._grid.h
+        elif self._grid.out_of_bounds(x, y):
+            return None
         return Location(self._grid, x, y)
-
-    def move_ip(self, dx, dy):
-        l = self.move(dx, dy)
-        self.x = l.x
-        self.y = l.y
-        return self
 
     def step(self, dir_):
         if dir_ == 'n':
@@ -79,12 +81,6 @@ class Location:
         if dir_ == 'w':
             return self.move(-1, 0)
         raise Exception(f'Unknown step direction: {dir_}')
-
-    def step_ip(self, dir_):
-        l = self.step(dir_)
-        self.x = l.x
-        self.y = l.y
-        return self
 
 
 def angle(dir_a, dir_b):
