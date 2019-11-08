@@ -393,6 +393,13 @@ class GameState(enum.Enum):
 class Game:
     def __init__(self):
         pygame.init()
+
+        pygame.mixer.init()
+        pygame.mixer.music.load('assets/edvard-grieg-peer-gynt1-morning-mood-piano.mid')
+        pygame.mixer.music.play(-1)
+
+
+
         self.clock = pygame.time.Clock()
         self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
         self.intro = IntroScreen()
@@ -402,7 +409,7 @@ class Game:
         self.text_win = GridText('You win!', white, size=4)
         self.text_lose = GridText('You lose!', white, size=4)
         self.text_get_ready = GridText('Press direction to start moving', white)
-        self.music = MidiMusic('assets/mountain_piano_short.mid')
+        self.music = None
 
         # really need a multiline text for this...
         line_1 = GridText('Level complete!', white, top=GRID.h // 2 - 1, size=2)
@@ -453,6 +460,8 @@ class Game:
 
             # press any key
             if self.state == GameState.INTRO:
+                pygame.mixer.music.stop()
+                self.music = MidiMusic('assets/mountain_piano_short.mid')
                 self._start_new_level()
                 continue
             if self.state == GameState.LEVEL_UP:
@@ -520,15 +529,20 @@ class Game:
             assert self.stats.size == len(self.snake)
 
             if len(self.snake) == WIN_SIZE:
+                self.music.stop()
                 if self.stats.level == WIN_LEVEL:
                     self.state = GameState.WIN
+                    pygame.mixer.music.load('assets/beethoven-symphony9-4-ode-to-joy-piano-solo.mid')
+                    pygame.mixer.music.play(-1)
                 else:
                     self.state = GameState.LEVEL_UP
-                self.music.stop()
+
 
         elif move_result == 'self':
             self.state = GameState.LOSE
             self.music.stop()
+            pygame.mixer.music.load('assets/frederic-chopin-piano-sonata-2-op35-3-funeral-march.mid')
+            pygame.mixer.music.play()
 
         self.status_bar.update(fps=self.clock.get_fps())
 
