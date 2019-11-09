@@ -10,6 +10,7 @@ import math
 import pygame
 
 import gridlib
+from text import TextSprite
 from music import Sounds, MidiMusic
 
 WRAP_AROUND_BOUNDS = False
@@ -35,6 +36,7 @@ class COLOR(SimpleNamespace):
     BACKGROUND = pygame.Color('black')
     GRID_LINE = pygame.Color('gray')
 
+
 class TileSprite:
     """Base class to represent single tile sprites."""
     def __init__(self):
@@ -51,6 +53,7 @@ class TileSprite:
     def blit(self, surf):
         """Blit sprite image onto surface."""
         surf.blit(self.image, self.rect)
+
 
 class Apple(TileSprite):
     """Apple that the snake eats to grow."""
@@ -312,12 +315,6 @@ class GridText:
     def draw(self, surf):
         surf.blit(self.image, self.rect)
 
-class MultilineText:
-    def __init__(self, grid_texts):
-        self.grid_texts = grid_texts
-    def draw(self, surf):
-        for grid_text in self.grid_texts:
-            grid_text.draw(surf)
 
 class StatusBar:
     def __init__(self):
@@ -426,6 +423,7 @@ class Game:
         self.intro = IntroScreen()
         self.background = Background()
         white = (255, 255, 255)
+        self.outro = TextSprite('hello\nthis\n\nis\nworking fine long line yeeee', white, TILE.h)
         self.text_pause = GridText('PAUSE', white, size=3)
         midy = GRID.h // 2
         self.text_win = GridText('You win!', white, top=midy-2, size=4)
@@ -612,6 +610,8 @@ class Game:
                 if not self.ignore_input:
                     self.text_press_restart.draw(self.screen)
             self.status_bar.draw(self.screen)
+
+            self.outro.draw(self.screen)
         pygame.display.flip()
 
 
