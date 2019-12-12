@@ -10,4 +10,3 @@ Learning game dev with Python and pygame.
 
 ### issues
 - pause/unpause background music
-- apples spawn on snake sometimes

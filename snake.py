@@ -16,11 +16,11 @@ from music import Sounds, MidiMusic
 WRAP_AROUND_BOUNDS = False
 GRID = gridlib.Grid(15, 15, WRAP_AROUND_BOUNDS)
 TILE = pygame.Rect(0, 0, 32, 32)
-START_SIZE = 3
+START_SIZE = GRID.h
 START_SPEED = 6 # steps per second
-WIN_SIZE = 5
+WIN_SIZE = 50
 WIN_LEVEL = 5
-APPLES = 4 # 1 good, other bad
+APPLES = 6 # 1 good, other bad
 
 def coord_rel_to_abs(coords, rect):
     """Return coordinate tuple changed from relative to absolute within rect.
@@ -66,7 +66,7 @@ class Apple(TileSprite):
         self.move(infeasible_locs)
 
     def move(self, infeasible_locs):
-        """Move apple to random location, do not move on snake."""
+        """Move apple to random location, do not move on snake or other apples."""
         feasible = False
         while not feasible:
             new_loc = GRID.random_loc()
@@ -488,7 +488,7 @@ class Game:
 
     def start_new_level(self):
         self.sounds.get_ready.play()
-        self.snake = Snake((3, 3), 's', self.stats.size, self.stats.level)
+        self.snake = Snake((0, 0), 'n', self.stats.size, self.stats.level)
         self.music.set_tempo(self.snake.speed_to_bpm())
         self.apples = [Apple(True, self.occupied_locs())]
         for _ in range(1, APPLES):
@@ -496,11 +496,8 @@ class Game:
         self.state = GameState.GET_READY
 
     def occupied_locs(self):
-        """Generator returns locations occupied by snake segments or apples."""
-        for seg in self.snake.segs:
-            yield seg.loc
-        for apple in self.apples:
-            yield apple.loc
+        """List of locations occupied by snake segments or apples."""
+        return [s.loc for s in self.snake.segs] + [a.loc for a in self.apples]
 
     def mainloop(self):
         while True:
