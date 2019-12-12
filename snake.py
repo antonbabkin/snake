@@ -16,9 +16,9 @@ from music import Sounds, MidiMusic
 WRAP_AROUND_BOUNDS = False
 GRID = gridlib.Grid(15, 15, WRAP_AROUND_BOUNDS)
 TILE = pygame.Rect(0, 0, 32, 32)
-START_SIZE = GRID.h
+START_SIZE = 3
 START_SPEED = 6 # steps per second
-WIN_SIZE = 50
+WIN_SIZE = 6
 WIN_LEVEL = 5
 APPLES = 6 # 1 good, other bad
 
@@ -448,7 +448,6 @@ class Game:
         self.sounds = Sounds(**{'eat_good': 'assets/sound_eat_good.ogg',
             'eat_bad': 'assets/sound_eat_bad.ogg',
             'pause': 'assets/pause.ogg',
-            'get_ready': 'assets/get_ready.ogg',
             'win_level': 'assets/win_level.ogg',
             'lose': 'assets/crash.ogg'})
 
@@ -486,7 +485,6 @@ class Game:
         self.after_level_up = False
 
     def start_new_level(self):
-        self.sounds.get_ready.play()
         self.snake = Snake((0, 0), 'n', self.stats.size, self.stats.level)
         self.music.set_tempo(self.snake.speed_to_bpm())
         self.apples = [Apple(True, self.occupied_locs())]
