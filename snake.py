@@ -267,6 +267,46 @@ class IntroScreen:
     def draw(self, surf):
         surf.blit(self.image, self.rect)
 
+class OutroScreen:
+    def __init__(self):
+        self.rect = pygame.display.get_surface().get_rect()
+        self.image = pygame.Surface(self.rect.size).convert()
+        self.image.fill(COLOR.BACKGROUND)
+
+
+        text = '''
+        Design and programming
+        Anton Babkin
+
+
+        Music
+
+        "Morning Mood" and "In the Hall of the Mountain King"
+        from Peer Gynt Suite by Edvard Grieg
+
+        "Ode to Joy"
+        from Symphony No. 9 by Ludwig van Beethoven
+
+        "Funeral March"
+        from Piano Sonata No. 2 by Frederic Chopin
+        '''
+
+        self.text = TextSprite(text, (255, 255, 255), 24)
+        self.text.rect.centerx = self.rect.centerx
+        self.text.rect.top = self.rect.h
+        self.text.draw(self.image)
+
+
+    def update(self):
+        if self.text.rect.top > 3 * TILE.h:
+            self.text.rect.top -= 1
+            self.image.fill(COLOR.BACKGROUND)
+            self.text.draw(self.image)
+
+    def draw(self, surf):
+        surf.blit(self.image, self.rect)
+
+
 class Background:
     def __init__(self):
         self.grid_lines = False
@@ -399,6 +439,7 @@ class GameState(enum.Enum):
     PAUSE = enum.auto()
     LEVEL_UP = enum.auto()
     WIN = enum.auto()
+    OUTRO = enum.auto()
     LOSE = enum.auto()
 
 class Game:
@@ -423,7 +464,6 @@ class Game:
         self.intro = IntroScreen()
         self.background = Background()
         white = (255, 255, 255)
-        self.outro = TextSprite('hello\nthis\n\nis\nworking fine long line yeeee', white, TILE.h)
         self.text_pause = GridText('PAUSE', white, size=3)
         midy = GRID.h // 2
         self.text_win = GridText('You win!', white, top=midy-2, size=4)
@@ -440,6 +480,7 @@ class Game:
     def start_new_game(self):
         pygame.mixer.music.load('assets/edvard-grieg-peer-gynt1-morning-mood-piano.mid')
         pygame.mixer.music.play(-1)
+        self.outro = OutroScreen()
         self.stats = Stats(self.status_bar)
         self.apples = []
         self.state = GameState.INTRO
@@ -477,18 +518,23 @@ class Game:
             if event.type != pygame.KEYDOWN or self.ignore_input:
                 continue
 
-            if self.state in (GameState.WIN, GameState.LOSE):
+            if self.state == GameState.WIN:
+                self.state = GameState.OUTRO
+                pygame.event.pump()
+                return
+
+            if self.state in (GameState.OUTRO, GameState.LOSE):
                 self.start_new_game()
                 pygame.event.pump()
                 return
 
-            # press any key
             if self.state == GameState.INTRO:
                 pygame.mixer.music.stop()
                 self.music = MidiMusic('assets/mountain_piano_short.mid')
                 self.start_new_level()
                 pygame.event.pump()
                 return
+
             if self.state == GameState.LEVEL_UP:
                 self.state = GameState.GET_READY
                 self.after_level_up = True
@@ -546,6 +592,8 @@ class Game:
         if pygame.time.get_ticks() > self.ignore_input_start_time + self.ignore_input_duration:
             self.ignore_input = False
 
+        self.outro.update()
+
         if self.state != GameState.RUN:
             return
 
@@ -588,6 +636,8 @@ class Game:
     def render(self):
         if self.state == GameState.INTRO:
             self.intro.draw(self.screen)
+        elif self.state == GameState.OUTRO:
+            self.outro.draw(self.screen)
         else:
             self.background.draw(self.screen)
             self.snake.blit(self.screen)
@@ -611,7 +661,6 @@ class Game:
                     self.text_press_restart.draw(self.screen)
             self.status_bar.draw(self.screen)
 
-            self.outro.draw(self.screen)
         pygame.display.flip()
 
 
