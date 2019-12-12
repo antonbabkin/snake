@@ -546,13 +546,12 @@ class Game:
     def _event_handle_pause(self, event):
         if event.key == pygame.K_SPACE:
             if self.state == GameState.PAUSE:
-                # todo: mixer.music.pause() does not work with MIDI
                 self.music.unpause()
                 self.sounds.pause.play()
                 self.state = GameState.RUN
             elif self.state == GameState.RUN:
-                self.music.pause()
                 self.sounds.pause.play()
+                self.music.pause()
                 self.state = GameState.PAUSE
 
 

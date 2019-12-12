@@ -23,7 +23,6 @@ class MidiMusic:
     def __init__(self, filename):
         self.buffer = io.BytesIO()
         self.mid = MidiFile(filename)
-        # self.mid.tracks[0] = self.mid.tracks[0][:20]
         self.mid.save(file=self.buffer)
         self.buffer.seek(0)
         pygame.mixer.init()
@@ -36,13 +35,15 @@ class MidiMusic:
         pygame.mixer.music.stop()
 
     def pause(self):
-        # todo: music.pause() does not work for midi.
-        # can use set_volume(0) to "pause" and set it back to unpause.
-        # also try to save get_pos(), and then use it to set_pos() when unpause.
-        pygame.mixer.music.pause()
+        # music.pause() does not work for midi. instead, just mute and unmute it.
+        # can also try to save get_pos(), and then use it to set_pos() when unpause.
+        # pygame.mixer.music.pause()
+        self.volume_before_pause = pygame.mixer.music.get_volume()
+        pygame.mixer.music.set_volume(0)
 
     def unpause(self):
-        pygame.mixer.music.unpause()
+        # pygame.mixer.music.unpause()
+        pygame.mixer.music.set_volume(self.volume_before_pause)
 
     def set_tempo(self, bpm=None, delta=None):
         """Set first "set_tempo" message to new bpm, or change bpm by delta.

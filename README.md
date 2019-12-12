@@ -9,4 +9,3 @@ Learning game dev with Python and pygame.
 - normalize sound and music volumes
 
 ### issues
-- pause/unpause background music
