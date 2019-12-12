@@ -61,8 +61,7 @@ class Apple(TileSprite):
         super().__init__()
         self.good = good
         color = (0, 255, 0) if good else (150, 75, 0)
-        pygame.draw.ellipse(self.image, color,
-                            self.rect.inflate(0, -int(0.2 * TILE.h)))
+        pygame.draw.ellipse(self.image, color, self.rect)
         self.move(infeasible_locs)
 
     def move(self, infeasible_locs):
@@ -97,30 +96,30 @@ class SnakeHead(SnakeSegment):
     def __init__(self, x, y, facing, colors):
         cfill, cedge = colors
         super().__init__(x, y, colors)
+        # erase segment
+        self.image.fill(self.transparent_color)
 
         # draw north-facing head
+        # to have symmetry, draw left half and flip
         image_rect = self.image.get_rect()
-        self.image.fill(COLOR.BACKGROUND)
 
-        contour_rel = ((0, 1), (0, 0.5), (0.2, 0), (0.8, 0), (1, 0.5), (1, 1))
+        # note: due to rounding in coord_rel_to_abs(), this will leave a gap if tile width is odd
+        contour_rel = ((0.5, 1), (0, 1), (0, 0.5), (0.2, 0), (0.5, 0))
         contour_abs = [coord_rel_to_abs(c, image_rect) for c in contour_rel]
         pygame.draw.polygon(self.image, cfill, contour_abs)
 
         nose_size = (math.ceil(TILE.w * 0.05), math.ceil(TILE.h * 0.05))
-        left_nose_center = coord_rel_to_abs((0.3, 0.1), image_rect)
-        left_nose = pygame.Rect(left_nose_center, nose_size)
-        pygame.draw.rect(self.image, cedge, left_nose)
-        right_nose_center = coord_rel_to_abs((0.7, 0.1), image_rect)
-        right_nose = pygame.Rect(right_nose_center, nose_size)
-        pygame.draw.rect(self.image, cedge, right_nose)
+        nose_left_top = coord_rel_to_abs((0.3, 0.1), image_rect)
+        nose = pygame.Rect(nose_left_top, nose_size)
+        pygame.draw.rect(self.image, cedge, nose)
 
         eye_size = (math.ceil(TILE.w * 0.1), math.ceil(TILE.h * 0.1))
-        left_eye_center = coord_rel_to_abs((0.2, 0.5), image_rect)
-        left_eye = pygame.Rect(left_eye_center, eye_size)
-        pygame.draw.rect(self.image, cedge, left_eye)
-        right_eye_center = coord_rel_to_abs((0.8, 0.5), image_rect)
-        right_eye = pygame.Rect(right_eye_center, eye_size)
-        pygame.draw.rect(self.image, cedge, right_eye)
+        eye_left_top = coord_rel_to_abs((0.2, 0.5), image_rect)
+        eye = pygame.Rect(eye_left_top, eye_size)
+        pygame.draw.rect(self.image, cedge, eye)
+
+        right_side = pygame.transform.flip(self.image, True, False)
+        self.image.blit(right_side, image_rect)
 
         self.facing = 'n'
         self.turn(facing)
