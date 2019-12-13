@@ -10,16 +10,16 @@ import math
 import pygame
 
 import gridlib
-from text import TextSprite
+from text import TextSprite, max_font_size_in_rect
 from music import Sounds, MidiMusic
 
-WRAP_AROUND_BOUNDS = False
-GRID = gridlib.Grid(40, 20, WRAP_AROUND_BOUNDS)
-TILE = pygame.Rect(0, 0, 32, 32)
+WRAP_AROUND_BOUNDS = True
+GRID = gridlib.Grid(6, 6, WRAP_AROUND_BOUNDS)
+TILE = pygame.Rect(0, 0, 64, 64)
 SCREEN = pygame.Rect(0, 0, GRID.w * TILE.w, GRID.h * TILE.h)
 START_SIZE = 3
 START_SPEED = 6 # steps per second
-WIN_SIZE = 4
+WIN_SIZE = 6
 WIN_LEVEL = 1
 APPLES = 6 # 1 good, other bad
 
@@ -337,50 +337,26 @@ class Background:
         surf.blit(self.image, self.rect)
 
 
-class GridText:
-    """Text positioned on a grid. Size, top and left in grid tile units.
-    Centered vertically if top is None, horizontally if left is None."""
-    def __init__(self, text, color, top=None, left=None, size=1, parent_rect=None):
-        font = pygame.font.Font(None, size * TILE.h)
-        self.image = font.render(text, True, color)
-        if parent_rect is None:
-            parent_rect = pygame.display.get_surface().get_rect()
-        pos = dict()
-        if left is None:
-            pos['centerx'] = parent_rect.centerx
-        else:
-            pos['left'] = left * TILE.w
-        if top is None:
-            pos['centery'] = parent_rect.centery
-        else:
-            pos['top'] = top * TILE.h
-
-        self.rect = self.image.get_rect(**pos)
-
-    def draw(self, surf):
-        surf.blit(self.image, self.rect)
-
-
 class StatusBar:
     def __init__(self):
         screen = pygame.display.get_surface()
         self.rect = screen.get_rect()
         self.image = pygame.Surface(self.rect.size).convert()
-        self.font = pygame.font.Font(None, int(TILE.h * 0.9))
+        font_size = max_font_size_in_rect('Size: 12  Score: 1234  Level: 12', (SCREEN.w, SCREEN.h * 0.07))
+        self.font = pygame.font.Font(None, font_size)
         self.color = pygame.Color('white')
         self.transparent_color = (0, 0, 0)
         self.image.set_colorkey(self.transparent_color, pygame.RLEACCEL)
 
-        self.coord_size = dict(left=int(TILE.w * 0.5), bottom=self.rect.bottom)
+        self.coord_size = dict(left=self.rect.w * 0.05, bottom=self.rect.bottom)
         self.coord_score = dict(centerx=self.rect.centerx, bottom=self.rect.bottom)
-        self.coord_level = dict(right=self.rect.right - int(TILE.w * 0.5), bottom=self.rect.bottom)
-        self.coord_fps = dict(right=self.rect.right - int(TILE.w * 0.5), top=self.rect.top)
+        self.coord_level = dict(right=self.rect.w * 0.95, bottom=self.rect.bottom)
+        self.coord_fps = dict(right=self.rect.w * 0.95, top=self.rect.top)
 
-        dummy_text = self.font.render('AAAAAA: XXX', True, self.color)
-        self.size_rect = dummy_text.get_rect(**self.coord_size)
-        self.score_rect = dummy_text.get_rect(**self.coord_score)
-        self.level_rect = dummy_text.get_rect(**self.coord_level)
-        self.fps_rect = dummy_text.get_rect(**self.coord_fps)
+        self.size_rect = self.font.render('Size: 12', True, self.color).get_rect(**self.coord_size)
+        self.score_rect = self.font.render('Score: 1234', True, self.color).get_rect(**self.coord_score)
+        self.level_rect = self.font.render('Level: 12', True, self.color).get_rect(**self.coord_level)
+        self.fps_rect = self.font.render('FPS: 12', True, self.color).get_rect(**self.coord_fps)
 
     def update(self, size=None, score=None, level=None, fps=None):
         if size is not None:
@@ -468,15 +444,24 @@ class Game:
         pygame.display.set_caption('Snake')
         self.intro = IntroScreen()
         self.background = Background()
-        white = (255, 255, 255)
-        self.text_pause = GridText('PAUSE', white, size=3)
-        midy = GRID.h // 2
-        self.text_win = GridText('You win!', white, top=midy-2, size=4)
-        self.text_lose = GridText('You lose!', white, top=midy-2, size=4)
-        self.text_press_restart = GridText('Press any key to restart', white, top=midy+2)
-        self.text_get_ready = GridText('Press direction to start moving', white)
-        self.text_level_up = GridText('Level complete!', white, top=midy-2, size=2)
-        self.text_level_up_press = GridText('Press any key to continue', white, top=midy+1)
+
+        def big_text(text):
+            t = TextSprite(text, pygame.Color('white'), rect_size=(SCREEN.w * 0.95, SCREEN.h * 0.2))
+            t.rect.center = SCREEN.center
+            return t
+        def sub_text(text):
+            t = TextSprite(text, pygame.Color('white'), rect_size=(SCREEN.w * 0.95, SCREEN.h * 0.05))
+            t.rect.center = (SCREEN.centerx, SCREEN.h * 0.7)
+            return t
+
+        self.text_pause = big_text('PAUSE')
+        self.text_level_up = big_text('Level complete!')
+        self.text_win = big_text('You win!')
+        self.text_lose = big_text('You lose!')
+        self.text_get_ready = sub_text('Press direction to start moving')
+        self.text_get_ready.rect.centery = SCREEN.centery
+        self.text_press_restart = sub_text('Press any key to restart')
+        self.text_level_up_press = sub_text('Press any key to continue')
 
         self.status_bar = StatusBar()
 

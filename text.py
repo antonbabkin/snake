@@ -4,7 +4,7 @@ Text rendering.
 
 import pygame
 
-def _max_font_size_in_rect(text, rect_size):
+def max_font_size_in_rect(text, rect_size):
     """Return largest font size, such that rendered text would fit inside rect."""
     font_size = 0
     text_smaller_than_rect = True
@@ -25,7 +25,7 @@ class TextSprite:
         if font_size is None:
             max_height_per_line = rect_size[1] // len(text)
             line_rect = (rect_size[0], max_height_per_line)
-            font_size = min(_max_font_size_in_rect(t, line_rect) for t in text)
+            font_size = min(max_font_size_in_rect(t, line_rect) for t in text)
         font = pygame.font.Font(None, font_size)
         sizes = [font.size(t) for t in text]
         sprite_w = max(s[0] for s in sizes)
@@ -65,7 +65,7 @@ def test_max_font_size_in_rect():
     text = 'This Is A Test!'
     for w in range(10, 101, 20):
         for h in range(5, 15, 3):
-            s = _max_font_size_in_rect(text, (w, h))
+            s = max_font_size_in_rect(text, (w, h))
             print(f'Rect {(w, h)}, font {s}')
 
 def test_TextSprite():
