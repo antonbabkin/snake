@@ -13,15 +13,34 @@ import gridlib
 from text import TextSprite, max_font_size_in_rect
 from music import Sounds, MidiMusic
 
-WRAP_AROUND_BOUNDS = True
-GRID = gridlib.Grid(6, 6, WRAP_AROUND_BOUNDS)
-TILE = pygame.Rect(0, 0, 64, 64)
-SCREEN = pygame.Rect(0, 0, GRID.w * TILE.w, GRID.h * TILE.h)
+
+##############################################
+# Change these constants to modify game mode #
+##############################################
+# Fild size in tiles
+GRID_W, GRID_H = 15, 15
+# Tile size in pixels
+TILE_W, TILE_H = 32, 32
+# Wrap around field walls
+WRAP_AROUND_BOUNDS = False
+# New snake length
 START_SIZE = 3
-START_SPEED = 6 # steps per second
-WIN_SIZE = 6
-WIN_LEVEL = 1
-APPLES = 6 # 1 good, other bad
+# Snake length to win a level
+WIN_SIZE = 10
+# How many level to win the game
+WIN_LEVEL = 10
+# New snake speed, tiles per second
+START_SPEED = 6
+# Number of good apples
+GOOD_APPLES = 1
+# Number of bad apples
+BAD_APPLES = 5
+
+
+GRID = gridlib.Grid(GRID_W, GRID_H, WRAP_AROUND_BOUNDS)
+TILE = pygame.Rect(0, 0, TILE_W, TILE_H)
+SCREEN = pygame.Rect(0, 0, GRID_W * TILE_W, GRID_H * TILE_H)
+
 
 def coord_rel_to_abs(coords, rect):
     """Return coordinate tuple changed from relative to absolute within rect.
@@ -247,15 +266,14 @@ class IntroScreen:
         self.image = pygame.Surface(self.rect.size).convert()
         self.image.fill(COLOR.BACKGROUND)
 
-        white = (255, 255, 255)
-
-        title = TextSprite('SNAKE', white, rect_size=(SCREEN.w * 0.4, SCREEN.h * 0.2))
+        title = TextSprite('SNAKE', pygame.Color('white'), rect_size=(SCREEN.w * 0.4, SCREEN.h * 0.2))
         title.rect.centerx = SCREEN.centerx
         title.rect.top = SCREEN.h * 0.1
         title.draw(self.image)
 
         instructions_text = f'''Move around and eat good apples to grow.
         Grow to size {WIN_SIZE} to get to the next level.
+        Bad apples ain't good.
         Comlete {WIN_LEVEL} levels to win the game.
         Speed increases with every level.
 
@@ -266,7 +284,7 @@ class IntroScreen:
         ESC: quit
 
         Press any key to start'''
-        instructions = TextSprite(instructions_text, white, rect_size=(SCREEN.w * 0.95, SCREEN.h * 0.7))
+        instructions = TextSprite(instructions_text, pygame.Color('white'), rect_size=(SCREEN.w * 0.95, SCREEN.h * 0.7))
         instructions.rect.centerx = SCREEN.centerx
         instructions.rect.top = SCREEN.h * 0.3
         instructions.draw(self.image)
@@ -342,7 +360,7 @@ class StatusBar:
         screen = pygame.display.get_surface()
         self.rect = screen.get_rect()
         self.image = pygame.Surface(self.rect.size).convert()
-        font_size = max_font_size_in_rect('Size: 12  Score: 1234  Level: 12', (SCREEN.w, SCREEN.h * 0.07))
+        font_size = max_font_size_in_rect('Size: 12  Score: 1234  Level: 12', (SCREEN.w, SCREEN.h * 0.06))
         self.font = pygame.font.Font(None, font_size)
         self.color = pygame.Color('white')
         self.transparent_color = (0, 0, 0)
@@ -479,8 +497,10 @@ class Game:
     def start_new_level(self):
         self.snake = Snake((0, 0), 'n', self.stats.size, self.stats.level)
         self.music.set_tempo(self.snake.speed_to_bpm())
-        self.apples = [Apple(True, self.occupied_locs())]
-        for _ in range(1, APPLES):
+        self.apples = []
+        for _ in range(GOOD_APPLES):
+            self.apples.append(Apple(True, self.occupied_locs()))
+        for _ in range(BAD_APPLES):
             self.apples.append(Apple(False, self.occupied_locs()))
         self.state = GameState.GET_READY
 
