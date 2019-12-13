@@ -14,12 +14,13 @@ from text import TextSprite
 from music import Sounds, MidiMusic
 
 WRAP_AROUND_BOUNDS = False
-GRID = gridlib.Grid(15, 15, WRAP_AROUND_BOUNDS)
+GRID = gridlib.Grid(40, 20, WRAP_AROUND_BOUNDS)
 TILE = pygame.Rect(0, 0, 32, 32)
+SCREEN = pygame.Rect(0, 0, GRID.w * TILE.w, GRID.h * TILE.h)
 START_SIZE = 3
 START_SPEED = 6 # steps per second
-WIN_SIZE = 6
-WIN_LEVEL = 5
+WIN_SIZE = 4
+WIN_LEVEL = 1
 APPLES = 6 # 1 good, other bad
 
 def coord_rel_to_abs(coords, rect):
@@ -247,21 +248,28 @@ class IntroScreen:
         self.image.fill(COLOR.BACKGROUND)
 
         white = (255, 255, 255)
-        def render(text, grid_row, text_size=1):
-            GridText(text, white, grid_row, size=text_size, parent_rect=self.rect).draw(self.image)
 
-        render('SNAKE', 1, 3)
-        render('Move around and eat good apples to grow.', 4)
-        render(f'Grow to size {WIN_SIZE} to get to the next level.', 5)
-        render(f'Comlete {WIN_LEVEL} levels to win the game.', 6)
-        render('Speed increases with every level.', 7)
-        render('CONTROLS', 9)
-        render('W, A, S, D, arrow keys: turn', 10)
-        render('spacebar: pause', 11)
-        render('G: toggle grid lines', 12)
-        render('ESC: quit', 13)
-        render('Press any key to start.', 14)
+        title = TextSprite('SNAKE', white, rect_size=(SCREEN.w * 0.4, SCREEN.h * 0.2))
+        title.rect.centerx = SCREEN.centerx
+        title.rect.top = SCREEN.h * 0.1
+        title.draw(self.image)
 
+        instructions_text = f'''Move around and eat good apples to grow.
+        Grow to size {WIN_SIZE} to get to the next level.
+        Comlete {WIN_LEVEL} levels to win the game.
+        Speed increases with every level.
+
+        CONTROLS
+        W, A, S, D, arrow keys: turn
+        SPACEBAR: pause
+        G: toggle grid lines
+        ESC: quit
+
+        Press any key to start'''
+        instructions = TextSprite(instructions_text, white, rect_size=(SCREEN.w * 0.95, SCREEN.h * 0.7))
+        instructions.rect.centerx = SCREEN.centerx
+        instructions.rect.top = SCREEN.h * 0.3
+        instructions.draw(self.image)
 
     def draw(self, surf):
         surf.blit(self.image, self.rect)
@@ -272,7 +280,6 @@ class OutroScreen:
         self.image = pygame.Surface(self.rect.size).convert()
         self.image.fill(COLOR.BACKGROUND)
 
-
         text = '''
         Design and programming
         Anton Babkin
@@ -280,7 +287,8 @@ class OutroScreen:
 
         Music
 
-        "Morning Mood" and "In the Hall of the Mountain King"
+        "Morning Mood"
+        "In the Hall of the Mountain King"
         from Peer Gynt Suite by Edvard Grieg
 
         "Ode to Joy"
@@ -289,15 +297,13 @@ class OutroScreen:
         "Funeral March"
         from Piano Sonata No. 2 by Frederic Chopin
         '''
-
-        self.text = TextSprite(text, (255, 255, 255), 24)
-        self.text.rect.centerx = self.rect.centerx
-        self.text.rect.top = self.rect.h
+        self.text = TextSprite(text, (255, 255, 255), rect_size=(SCREEN.w * 0.95, SCREEN.h * 0.7))
+        self.text.rect.centerx = SCREEN.centerx
+        self.text.rect.top = SCREEN.h
         self.text.draw(self.image)
 
-
     def update(self):
-        if self.text.rect.top > 3 * TILE.h:
+        if self.text.rect.top > SCREEN.h * 0.2:
             self.text.rect.top -= 1
             self.image.fill(COLOR.BACKGROUND)
             self.text.draw(self.image)
@@ -458,7 +464,8 @@ class Game:
         self.ignore_input_duration = 1000
         self.ignore_input_start_time = pygame.time.get_ticks() - self.ignore_input_duration - 1
 
-        self.screen = pygame.display.set_mode((GRID.w * TILE.w, GRID.w * TILE.h))
+        self.screen = pygame.display.set_mode(SCREEN.size)
+        pygame.display.set_caption('Snake')
         self.intro = IntroScreen()
         self.background = Background()
         white = (255, 255, 255)
@@ -585,7 +592,8 @@ class Game:
         if pygame.time.get_ticks() > self.ignore_input_start_time + self.ignore_input_duration:
             self.ignore_input = False
 
-        self.outro.update()
+        if self.state == GameState.OUTRO:
+            self.outro.update()
 
         if self.state != GameState.RUN:
             return
