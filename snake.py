@@ -445,11 +445,11 @@ class Game:
     def __init__(self):
         pygame.init()
         pygame.mixer.init()
-        self.sounds = Sounds(**{'eat_good': 'assets/sound_eat_good.ogg',
-            'eat_bad': 'assets/sound_eat_bad.ogg',
+        self.sounds = Sounds(**{'eat_good': 'assets/eat_good.ogg',
+            'eat_bad': 'assets/eat_bad.ogg',
             'pause': 'assets/pause.ogg',
             'win_level': 'assets/win_level.ogg',
-            'lose': 'assets/crash.ogg'})
+            'lose': 'assets/lose_level.ogg'})
 
         self.clock = pygame.time.Clock()
 
@@ -486,7 +486,7 @@ class Game:
         self.start_new_game()
 
     def start_new_game(self):
-        pygame.mixer.music.load('assets/edvard-grieg-peer-gynt1-morning-mood-piano.mid')
+        pygame.mixer.music.load('assets/intro.mid')
         pygame.mixer.music.play(-1)
         self.outro = OutroScreen()
         self.stats = Stats(self.status_bar)
@@ -536,7 +536,7 @@ class Game:
 
             if self.state == GameState.INTRO:
                 pygame.mixer.music.stop()
-                self.music = MidiMusic('assets/mountain_piano_short.mid')
+                self.music = MidiMusic('assets/level.mid')
                 self.start_new_level()
                 pygame.event.pump()
                 return
@@ -621,7 +621,7 @@ class Game:
                 self.ignore_input_start_time = pygame.time.get_ticks()
                 if self.stats.level == WIN_LEVEL:
                     self.state = GameState.WIN
-                    pygame.mixer.music.load('assets/beethoven-symphony9-4-ode-to-joy-piano-solo.mid')
+                    pygame.mixer.music.load('assets/win_game.mid')
                     pygame.mixer.music.play(-1)
                 else:
                     self.state = GameState.LEVEL_UP
@@ -634,7 +634,7 @@ class Game:
             self.ignore_input = True
             self.ignore_input_start_time = pygame.time.get_ticks()
             self.sounds.lose.play()
-            pygame.mixer.music.load('assets/frederic-chopin-piano-sonata-2-op35-3-funeral-march.mid')
+            pygame.mixer.music.load('assets/lose_game.mid')
             pygame.mixer.music.play()
 
         self.status_bar.update(fps=self.clock.get_fps())
