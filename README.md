@@ -3,7 +3,7 @@ Classic snake game. Almost.
 
 ![demo](https://storage.googleapis.com/antonbabkin/snake-public/demo_v01.gif)
 
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/aeQSr7X4_tU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[Watch demo on YouTube](https://youtu.be/aeQSr7X4_tU)
 
 ## installation
 
